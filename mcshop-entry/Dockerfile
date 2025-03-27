@@ -4,7 +4,7 @@ FROM eclipse-temurin:17-jdk-jammy as base
 WORKDIR /app
 COPY . /app
 RUN ./mvnw clean install
-ENV AWS_REGION=ap-southeast-1
+ENV AWS_REGION=ap-east-1
 ENV AWS_ACCESS_KEY_ID=dummy_key
 ENV AWS_SECRET_ACCESS_KEY=dummy_secret
 

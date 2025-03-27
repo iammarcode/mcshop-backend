@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # env variables
-aws_region="ap-southeast-1"
+aws_region="ap-east-1"
 
 # create sns topic
 awslocal sns create-topic --name customer-otp-topic

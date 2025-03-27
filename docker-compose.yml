@@ -23,7 +23,7 @@ services:
     environment:
       - LOCALSTACK_HOST=localstack
       - SERVICES=sns,sqs,secretsmanager
-      - AWS_DEFAULT_REGION=ap-southeast-1
+      - AWS_DEFAULT_REGION=ap-east-1
     volumes:
       - "./data/localstack/init:/etc/localstack/init/ready.d"
       - "./data/tmp/localstack/volume:/var/lib/localstack"
