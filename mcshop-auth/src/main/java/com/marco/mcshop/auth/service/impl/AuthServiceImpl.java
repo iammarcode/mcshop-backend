@@ -1,9 +1,9 @@
 package com.marco.mcshop.auth.service.impl;
 
 import com.marco.mcshop.auth.entity.CustomerEntity;
+import com.marco.mcshop.auth.exception.auth.OtpValidationFailedException;
 import com.marco.mcshop.auth.exception.auth.RefreshTokenInvalidException;
 import com.marco.mcshop.auth.payload.dto.customer.CustomerDto;
-import com.marco.mcshop.auth.payload.mapper.CustomerMapper;
 import com.marco.mcshop.auth.payload.request.CustomerLoginRequest;
 import com.marco.mcshop.auth.payload.request.CustomerRegisterRequest;
 import com.marco.mcshop.auth.payload.response.CustomerLoginResponse;
@@ -22,6 +22,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,9 +41,9 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private AuthenticationManager authenticationManager;
     @Autowired
-    private CustomerMapper customerMapper;
-    @Autowired
     private EmailService emailService;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Override
     public void requestOtp(String email) {
@@ -61,13 +62,19 @@ public class AuthServiceImpl implements AuthService {
     public CustomerRegisterResponse register(CustomerRegisterRequest registerReq) {
         // check otp
         String otpCached = otpService.getOtpByKey(registerReq.getEmail());
-        if (!registerReq.getOtp().equals(otpCached)) {
-            throw new RuntimeException();
+        if (registerReq.getOtp() == null || !registerReq.getOtp().equals(otpCached)) {
+            throw new OtpValidationFailedException(registerReq.getOtp());
         }
         otpService.clearOtpByKey(registerReq.getEmail());
 
         // create customer
-        CustomerEntity customerEntity = customerMapper.toEntity(registerReq);
+        CustomerEntity customerEntity = CustomerEntity.builder()
+                .email(registerReq.getEmail())
+                .firstName(registerReq.getFirstName())
+                .lastName(registerReq.getLastName())
+                .displayName(registerReq.getDisplayName())
+                .password(passwordEncoder.encode(registerReq.getPassword()))
+                .build();
         CustomerEntity customerSaved = customerRepository.save(customerEntity);
 
         // gen token

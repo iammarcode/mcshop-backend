@@ -14,8 +14,6 @@
   <name>Mcshop Backend</name>
 
   <modules>
-<!--    <module>mcshop-model</module>-->
-<!--    <module>mcshop-entry</module>-->
     <module>mcshop-auth</module>
   </modules>
 </project>

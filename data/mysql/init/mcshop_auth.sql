@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS customer (
   -- Personal information
   `first_name` VARCHAR(100) NULL,
   `last_name` VARCHAR(100) NULL,
-  `display_name` VARCHAR(100) NULL,
+  `display_name` VARCHAR(100) NOT NULL,
   
   -- Account status
   `status` ENUM('ACTIVE', 'SUSPENDED', 'DELETED') NOT NULL DEFAULT 'ACTIVE',

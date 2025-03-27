@@ -21,7 +21,7 @@ public class AuthenticationProviderConfig {
 
     @Bean
     public UserDetailsService userDetailsService() {
-        return email -> customerService.findUserDetailsByEmail(email);
+        return customerService::findUserDetailsByEmail;
     }
 
     @Bean

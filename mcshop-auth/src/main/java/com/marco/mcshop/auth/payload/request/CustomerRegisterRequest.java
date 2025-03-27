@@ -19,5 +19,9 @@ public class CustomerRegisterRequest {
 
     private String lastName;
 
+    @NotBlank
+    private String displayName;
+
+    @NotBlank
     private String otp;
 }

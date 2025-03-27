@@ -1,4 +1,4 @@
-package com.marco.mcshop.auth.payload.dto.customer;
+package com.marco.mcshop.auth.payload.request;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class OtpDto {
+public class OtpRequest {
     @NotBlank
     private String email;
 }

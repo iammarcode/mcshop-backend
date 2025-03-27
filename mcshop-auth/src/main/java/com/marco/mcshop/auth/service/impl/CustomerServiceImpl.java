@@ -2,7 +2,6 @@ package com.marco.mcshop.auth.service.impl;
 
 import com.marco.mcshop.auth.entity.CustomerEntity;
 import com.marco.mcshop.auth.exception.customer.CustomerNotFoundException;
-import com.marco.mcshop.auth.payload.mapper.CustomerMapper;
 import com.marco.mcshop.auth.repository.CustomerRepository;
 import com.marco.mcshop.auth.service.CustomerService;
 import io.jsonwebtoken.JwtException;
@@ -18,8 +17,6 @@ import java.util.List;
 public class CustomerServiceImpl implements CustomerService {
     @Autowired
     private CustomerRepository customerRepository;
-    @Autowired
-    private CustomerMapper customerMapper;
 
     @Override
     public CustomerEntity create(CustomerEntity customerEntity) {
