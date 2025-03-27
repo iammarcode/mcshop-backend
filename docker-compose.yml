@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   api:
     build:
@@ -10,9 +11,12 @@ services:
     volumes:
       - ./:/app
     depends_on:
-      - mysql
+      - auth-db
+      - product-db
       - redis
       - localstack
+    networks:
+      - mcshop-network
 
   localstack:
     container_name: "mcshop_localstack"
@@ -23,34 +27,59 @@ services:
     environment:
       - LOCALSTACK_HOST=localstack
       - SERVICES=sns,sqs,secretsmanager
-      - AWS_DEFAULT_REGION=ap-southeast-1
+      - AWS_DEFAULT_REGION=ap-east-1
     volumes:
       - "./data/localstack/init:/etc/localstack/init/ready.d"
       - "./data/tmp/localstack/volume:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - mcshop-network
 
-  mysql:
+  auth-db:
     image: mysql:8.0
-    container_name: "mcshop_mysql"
+    container_name: "mcshop_auth_mysql"
     ports:
-      - "3306:3306"
+      - "3307:3306"
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_USER=local
       - MYSQL_PASSWORD=local
-      - MYSQL_DATABASE=mcshop
+      - MYSQL_DATABASE=mcshop_auth
     volumes:
-      - mysql_data:/var/lib/mysql
-      - mysql_config:/etc/mysql/conf.d
-      - ./data/mysql/init:/docker-entrypoint-initdb.d
+      - auth_db_data:/var/lib/mysql
+      - ./data/mysql/init/mcshop_auth.sql:/docker-entrypoint-initdb.d/mcshop_auth.sql
+    networks:
+      - mcshop-network
+
+  product-db:
+    image: mysql:8.0
+    container_name: "mcshop_product_mysql"
+    ports:
+      - "3308:3306"
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=true
+      - MYSQL_USER=local
+      - MYSQL_PASSWORD=local
+      - MYSQL_DATABASE=mcshop_product
+    volumes:
+      - product_db_data:/var/lib/mysql
+      - ./data/mysql/init/mcshop_product.sql:/docker-entrypoint-initdb.d/mcshop_product.sql
+    networks:
+      - mcshop-network
 
   redis:
     restart: always
     image: redis
     container_name: "mcshop_redis"
     ports:
-        - "6379:6379"
+      - "6379:6379"
+    networks:
+      - mcshop-network
 
 volumes:
-  mysql_data:
-  mysql_config:
+  auth_db_data:
+  product_db_data:
+
+networks:
+  mcshop-network:
+    driver: bridge
