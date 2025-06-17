@@ -1,0 +1,7 @@
+package com.marcoindev.mcshop.auth.exception.user;
+
+public class UserAlreadyExistException extends RuntimeException {
+    public UserAlreadyExistException(String message) {
+        super(message);
+    }
+}

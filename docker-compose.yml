@@ -1,84 +1,114 @@
-version: '3.8'
-
 services:
-  api:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"  # AMQP port
+      - "15672:15672"  # Management UI port
+    networks:
+      - mcshop-network
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  gateway-service:
     build:
-      context: .
-      target: local
-    container_name: "mcshop_api"
+      context: gateway-service
+      target: docker
+      dockerfile: Dockerfile
+    container_name: "gateway-service"
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - auth-service
+      - user-service
+    networks:
+      - mcshop-network
+
+  auth-service:
+    build:
+      context: auth-service
+      target: docker
+      dockerfile: Dockerfile
+    container_name: "auth-service"
+    env_file:
+      - .env
+    environment:
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
     ports:
       - "8081:8081"
-    volumes:
-      - ./:/app
     depends_on:
-      - auth-db
-      - product-db
+      - mcshop-db
       - redis
-      - localstack
     networks:
       - mcshop-network
 
-  localstack:
-    container_name: "mcshop_localstack"
-    image: localstack/localstack:3.2.0
+  user-service:
+    build:
+      context: user-service
+      target: docker
+      dockerfile: Dockerfile
+    container_name: "user-service"
+    env_file:
+      - .env
     ports:
-      - "127.0.0.1:4510-4559:4510-4559"  # external service port range
-      - "127.0.0.1:4566:4566"            # LocalStack Edge Proxy
-    environment:
-      - LOCALSTACK_HOST=localstack
-      - SERVICES=sns,sqs,secretsmanager
-      - AWS_DEFAULT_REGION=ap-east-1
-    volumes:
-      - "./data/localstack/init:/etc/localstack/init/ready.d"
-      - "./data/tmp/localstack/volume:/var/lib/localstack"
-      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "8082:8082"
+    depends_on:
+      - mcshop-db
+      - redis
     networks:
       - mcshop-network
 
-  auth-db:
+  payment-service:
+    build:
+      context: payment-service
+      target: docker
+      dockerfile: Dockerfile
+    container_name: "payment-service"
+    env_file:
+      - .env
+    ports:
+      - "8085:8085"
+    depends_on:
+      - mcshop-db
+    networks:
+      - mcshop-network
+
+  mcshop-db:
     image: mysql:8.0
-    container_name: "mcshop_auth_mysql"
+    container_name: "mcshop-db"
     ports:
-      - "3307:3306"
+      - "3306:3306"
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_USER=local
       - MYSQL_PASSWORD=local
-      - MYSQL_DATABASE=mcshop_auth
+      - MYSQL_DATABASE=mcshop
     volumes:
-      - auth_db_data:/var/lib/mysql
-      - ./data/mysql/init/mcshop_auth.sql:/docker-entrypoint-initdb.d/mcshop_auth.sql
-    networks:
-      - mcshop-network
-
-  product-db:
-    image: mysql:8.0
-    container_name: "mcshop_product_mysql"
-    ports:
-      - "3308:3306"
-    environment:
-      - MYSQL_ALLOW_EMPTY_PASSWORD=true
-      - MYSQL_USER=local
-      - MYSQL_PASSWORD=local
-      - MYSQL_DATABASE=mcshop_product
-    volumes:
-      - product_db_data:/var/lib/mysql
-      - ./data/mysql/init/mcshop_product.sql:/docker-entrypoint-initdb.d/mcshop_product.sql
+      - mcshop_db_data:/var/lib/mysql
+      - ./data/mysql/init/:/docker-entrypoint-initdb.d/
     networks:
       - mcshop-network
 
   redis:
     restart: always
     image: redis
-    container_name: "mcshop_redis"
+    container_name: "redis"
     ports:
       - "6379:6379"
     networks:
       - mcshop-network
 
 volumes:
-  auth_db_data:
-  product_db_data:
+  mcshop_db_data:
 
 networks:
   mcshop-network:

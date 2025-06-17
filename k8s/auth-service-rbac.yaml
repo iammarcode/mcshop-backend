@@ -1,0 +1,23 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: chatbot
+  name: service-reader
+rules:
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: chatbot
+  name: service-reader-binding
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: chatbot
+roleRef:
+  kind: Role
+  name: service-reader
+  apiGroup: rbac.authorization.k8s.io

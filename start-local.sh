@@ -2,10 +2,10 @@
 
 set -e
 
-# Stop and remove containers and volumes
-docker compose down -v
+cp .env.template .env
 
-chmod -R 777 ./data/localstack/init
 chmod -R 777 ./data/mysql/init
 
-docker compose up localstack auth-db product-db redis -d
+docker compose down -v
+
+docker compose up mcshop-db redis rabbitmq -d

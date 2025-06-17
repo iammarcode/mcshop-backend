@@ -2,7 +2,14 @@
 
 set -e
 
-chmod -R 777 ./data/localstack/init
+cp .env.template .env
+
 chmod -R 777 ./data/mysql/init
+
+docker compose down -v
+
+mvn clean package -DskipTests
+
+docker compose build gateway-service auth-service user-service order-service
 
 docker compose up -d

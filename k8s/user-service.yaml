@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+  namespace: chatbot
+data:
+  SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/chatbot"
+  SPRING_DATASOURCE_USERNAME: "local"
+  SPRING_DATASOURCE_PASSWORD: "local"
+  SPRING_REDIS_HOST: "redis"
+  SPRING_REDIS_PORT: "6379"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: chatbot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: ismarcochow/chatbot-user-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: user-service-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: chatbot
+  labels:
+    app: user-service
+    service-type: backend
+spec:
+  ports:
+    - port: 8082
+      targetPort: 8082
+  selector:
+    app: user-service
