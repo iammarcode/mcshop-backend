@@ -3,7 +3,7 @@
 kubectl get all,ingress -A | grep -i "kong"
 helm list -A | grep -i "kong"
 
-helm uninstall kong -n chatbot
+helm uninstall kong -n mcshop
 
 pkill -f "minikube tunnel"
 

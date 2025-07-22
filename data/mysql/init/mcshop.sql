@@ -135,7 +135,6 @@ CREATE TABLE IF NOT EXISTS shopping_cart (
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Last profile update time',
     `deleted_at` DATETIME NULL COMMENT 'Soft delete timestamp'
-    PRIMARY KEY (`id`)
     ) ENGINE=InnoDB COMMENT='user shopping cart';
 
 CREATE TABLE IF NOT EXISTS shopping_cart_item (
@@ -184,6 +183,5 @@ CREATE TABLE IF NOT EXISTS `mcshop`.`order_transaction` (
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Last profile update time',
     `deleted_at` DATETIME NULL COMMENT 'Soft delete timestamp'
-    PRIMARY KEY (`id`)
     ) ENGINE=InnoDB COMMENT='order transaction';
 

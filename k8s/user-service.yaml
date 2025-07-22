@@ -2,9 +2,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: user-service-config
-  namespace: chatbot
+  namespace: mcshop
 data:
-  SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/chatbot"
+  SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/mcshop"
   SPRING_DATASOURCE_USERNAME: "local"
   SPRING_DATASOURCE_PASSWORD: "local"
   SPRING_REDIS_HOST: "redis"
@@ -14,7 +14,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: user-service
-  namespace: chatbot
+  namespace: mcshop
 spec:
   replicas: 1
   selector:
@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: user-service
-          image: ismarcochow/chatbot-user-service:latest
+          image: ismarcochow/mcshop-user-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8082
@@ -39,7 +39,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: user-service
-  namespace: chatbot
+  namespace: mcshop
   labels:
     app: user-service
     service-type: backend

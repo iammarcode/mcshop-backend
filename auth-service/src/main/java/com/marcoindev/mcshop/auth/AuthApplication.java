@@ -8,7 +8,7 @@ import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
 @EnableFeignClients
-@ComponentScan(basePackages = {"com.marcoindev.chatbot.common", "com.marcoindev.chatbot.auth"})
+@ComponentScan(basePackages = {"com.marcoindev.mcshop.common", "com.marcoindev.mcshop.auth"})
 @EnableDiscoveryClient
 public class AuthApplication {
     public static void main(String[] args) {

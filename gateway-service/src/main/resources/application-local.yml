@@ -23,7 +23,7 @@ spring:
           predicates:
             - Path=/api/v1/payment/**
   datasource:
-    url: jdbc:localhost://chatbot-db/chatbot
+    url: jdbc:localhost://mcshop-db/mcshop
   data:
     redis:
       host: localhost

@@ -1,4 +1,4 @@
-# chatbot backend
+# mcshop backend
 
 create .env file on your local machine:
 ```

@@ -7,7 +7,7 @@ import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-@ComponentScan(basePackages = {"com.marcoindev.chatbot.common.security", "com.marcoindev.chatbot.gateway"})
+@ComponentScan(basePackages = {"com.marcoindev.mcshop.common.security", "com.marcoindev.mcshop.gateway"})
 public class GatewayApplication {
     public static void main(String[] args) {
         SpringApplication.run(GatewayApplication.class, args);

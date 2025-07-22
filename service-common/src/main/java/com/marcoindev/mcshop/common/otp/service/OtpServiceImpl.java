@@ -9,7 +9,7 @@ import java.util.Random;
 @Service
 public class OtpServiceImpl implements OtpService {
     private final RedisService<String, Object> redisService;
-    @Value("${chatbot.otp.expire.second}")
+    @Value("${mcshop.otp.expire.second}")
     private Long OTP_EXPIRE_SECOND;
 
     public OtpServiceImpl(RedisService<String, Object> redisService) {
