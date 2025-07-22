@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 @Setter
 @Configuration
-@ConfigurationProperties(prefix = "chatbot.mail")
+@ConfigurationProperties(prefix = "mcshop.mail")
 public class EmailProperties {
     private String host;
     private Integer port;

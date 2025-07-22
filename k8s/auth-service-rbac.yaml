@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  namespace: chatbot
+  namespace: mcshop
   name: service-reader
 rules:
   - apiGroups: [""]
@@ -11,12 +11,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  namespace: chatbot
+  namespace: mcshop
   name: service-reader-binding
 subjects:
   - kind: ServiceAccount
     name: default
-    namespace: chatbot
+    namespace: mcshop
 roleRef:
   kind: Role
   name: service-reader

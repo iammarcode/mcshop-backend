@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 @Setter
 @Configuration
-@ConfigurationProperties(prefix = "chatbot.jwt")
+@ConfigurationProperties(prefix = "mcshop.jwt")
 public class JwtProperties {
     private String secretKey;
     private Long accessTokenExpiration;

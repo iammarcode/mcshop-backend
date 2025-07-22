@@ -4,8 +4,8 @@ kubectl apply -f namespace.yaml
 
 # Create the ConfigMap for the init sql
 kubectl create configmap mysql-init \
-  --namespace=chatbot \
-  --from-file=../data/mysql/init/chatbot.sql
+  --namespace=mcshop \
+  --from-file=../data/mysql/init/mcshop.sql
 
 kubectl apply -f mysql.yaml
 
@@ -15,19 +15,19 @@ kubectl apply -f redis.yaml
 kubectl create secret generic auth-secrets \
   --from-literal=smtp-username="ismarcochow@gmail.com" \
   --from-literal=smtp-password="hjgx awcr iivl rejr" \
-  -n chatbot
+  -n mcshop
 
 kubectl apply -f auth-service.yaml
 kubectl apply -f user-service.yaml
 
-kubectl get pods -n chatbot
+kubectl get pods -n mcshop
 
 
 # logs
-kubectl logs -f -l app=auth-service -n chatbot
+kubectl logs -f -l app=auth-service -n mcshop
 
 # rollout
-kubectl rollout restart deployment/auth-service -n chatbot
+kubectl rollout restart deployment/auth-service -n mcshop
 
 # dashboard
 kubectl -n kubernetes-dashboard create serviceaccount dashboard-admin
