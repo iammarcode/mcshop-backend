@@ -1,17 +1,13 @@
 package com.marcoindev.mcshop.product.controller;
 
 import com.marcoindev.mcshop.common.payload.ApiResponse;
+import com.marcoindev.mcshop.product.entity.ProductEntity;
 import com.marcoindev.mcshop.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.marcoindev.mcshop.product.entity.ProductEntity;
-import java.util.List;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/product")
@@ -26,9 +22,11 @@ public class ProductController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<ApiResponse<List<ProductEntity>>> getAllProducts() {
-        List<ProductEntity> products = productService.getAllProducts();
-        return ResponseEntity.ok(ApiResponse.<List<ProductEntity>>builder().data(products).build());
+    public ResponseEntity<ApiResponse<Page<ProductEntity>>> getAllProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Page<ProductEntity> products = productService.getAllProducts(PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.<Page<ProductEntity>>builder().data(products).build());
     }
 
     @GetMapping("/{id}")

@@ -1,10 +1,12 @@
 package com.marcoindev.mcshop.product.service;
 
 import com.marcoindev.mcshop.product.entity.ProductEntity;
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.Optional;
 
 public interface ProductService {
-    List<ProductEntity> getAllProducts();
+    Page<ProductEntity> getAllProducts(Pageable pageable);
     Optional<ProductEntity> getProductById(String id);
 }
