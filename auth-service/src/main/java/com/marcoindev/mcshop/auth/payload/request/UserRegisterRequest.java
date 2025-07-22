@@ -26,11 +26,4 @@ public class UserRegisterRequest {
     private String firstname;
     private String lastname;
     private String phone;
-
-    // user preference
-    private String defaultProviderId;
-    private String enabledProviders;
-    private String defaultModel;
-    private String theme;
-    private String notifPref;
 }
