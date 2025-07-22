@@ -10,18 +10,11 @@ spring:
           uri: http://localhost:8082
           predicates:
             - Path=/api/v1/user/**
-        - id: chat-service-route
+        - id: product-service-route
           uri: http://localhost:8083
           predicates:
-            - Path=/api/v1/chat/**
-        - id: subscription-service-route
-          uri: http://localhost:8084
-          predicates:
-            - Path=/api/v1/subscription/**
-        - id: payment-service-route
-          uri: http://localhost:8085
-          predicates:
-            - Path=/api/v1/payment/**
+            - Path=/api/v1/product/**
+        
   datasource:
     url: jdbc:localhost://mcshop-db/mcshop
   data:
