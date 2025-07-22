@@ -4,7 +4,8 @@ import com.marcoindev.mcshop.user.entity.UserProfileEntity;
 import com.marcoindev.mcshop.user.exception.profile.ProfileNotFoundException;
 import com.marcoindev.mcshop.user.payload.request.CreateProfileRequest;
 import com.marcoindev.mcshop.user.payload.response.UserProfileResponse;
-import com.marcoindev.mcshop.user.repository.UserProfileRepository;
+import com.marcoindev.mcshop.user.repository.UserProfileMapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.marcoindev.mcshop.user.service.UserProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -12,13 +13,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class UserProfileServiceImpl implements UserProfileService {
     @Autowired
-    private UserProfileRepository profileRepository;
+    private UserProfileMapper profileMapper;
 
     @Override
     public UserProfileResponse getProfileById(String userId) {
-        UserProfileEntity profileFound = profileRepository.findByUserId(userId).orElseThrow(
-                () -> new ProfileNotFoundException("User profile not found with userId: " + userId)
-        );
+        UserProfileEntity profileFound = profileMapper.selectOne(new QueryWrapper<UserProfileEntity>().eq("user_id", userId));
+        if (profileFound == null) {
+            throw new ProfileNotFoundException("User profile not found with userId: " + userId);
+        }
 
         return UserProfileResponse.builder()
                 .phone(profileFound.getPhone())
@@ -37,7 +39,9 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .phone(request.getPhone())
                 .lastName(request.getLastName())
                 .build();
-        UserProfileEntity savedProfile = profileRepository.save(profile);
+        UserProfileEntity savedProfile = null;
+        profileMapper.insert(profile);
+        savedProfile = profile;
 
         return UserProfileResponse.builder()
                 .phone(savedProfile.getPhone())

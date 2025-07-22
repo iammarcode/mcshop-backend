@@ -1,8 +1,8 @@
 package com.marcoindev.mcshop.auth.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
 
@@ -10,25 +10,12 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Entity
-@Builder
-@Table(name = "refresh_token")
+@TableName("refresh_token")
 public class RefreshTokenEntity {
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "CHAR(36)")
+    @TableId(value = "id")
     private String id;
-
-    @OneToOne
-    @JoinColumn(name = "user_id", referencedColumnName = "id")
-    private UserEntity user;
-
-    @Column(nullable = false, unique = true)
+    private String userId;
     private String token;
-
-    @Column(name = "expire_at", nullable = false)
-    private LocalDateTime expireAt;
-
-    @Column(name = "deleted_at", nullable = true)
-    private LocalDateTime deletedAt;
+    private java.time.LocalDateTime expireAt;
+    private java.time.LocalDateTime deletedAt;
 }

@@ -2,7 +2,8 @@ package com.marcoindev.mcshop.auth.service.impl;
 
 import com.marcoindev.mcshop.auth.entity.RefreshTokenEntity;
 import com.marcoindev.mcshop.auth.entity.UserEntity;
-import com.marcoindev.mcshop.auth.repository.RefreshTokenRepository;
+import com.marcoindev.mcshop.auth.repository.RefreshTokenMapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.marcoindev.mcshop.auth.service.RefreshTokenService;
 import com.marcoindev.mcshop.common.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +15,7 @@ import java.util.Optional;
 @Service
 public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Autowired
-    private RefreshTokenRepository refreshTokenRepository;
+    private RefreshTokenMapper refreshTokenMapper;
 
 
     @Autowired
@@ -23,7 +24,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     @Override
     public Optional<RefreshTokenEntity> findByToken(String token) {
-        return refreshTokenRepository.findByToken(token);
+        return Optional.ofNullable(refreshTokenMapper.selectOne(new QueryWrapper<RefreshTokenEntity>().eq("token", token)));
     }
 
     @Override
@@ -33,17 +34,16 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     @Override
     public void saveRefreshToken(UserEntity user, String newToken) {
-        RefreshTokenEntity refreshTokenEntity = RefreshTokenEntity.builder()
-                .user(user)
-                .token(newToken)
-                .expireAt(jwtUtil.getRefreshExpirationTime())
-                .build();
-        refreshTokenRepository.save(refreshTokenEntity);
+        RefreshTokenEntity refreshTokenEntity = new RefreshTokenEntity();
+        refreshTokenEntity.setUserId(user.getId());
+        refreshTokenEntity.setToken(newToken);
+        refreshTokenEntity.setExpireAt(jwtUtil.getRefreshExpirationTime());
+        refreshTokenMapper.insert(refreshTokenEntity);
     }
 
     @Override
     public void deleteByToken(RefreshTokenEntity refreshToken) {
         refreshToken.setDeletedAt(LocalDateTime.now());
-        refreshTokenRepository.save(refreshToken);
+        refreshTokenMapper.updateById(refreshToken);
     }
 }
