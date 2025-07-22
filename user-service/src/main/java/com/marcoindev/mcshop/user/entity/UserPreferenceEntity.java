@@ -3,6 +3,7 @@ package com.marcoindev.mcshop.user.entity;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.*;
+
 import java.time.LocalDateTime;
 
 @Getter

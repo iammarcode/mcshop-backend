@@ -5,8 +5,6 @@ import com.marcoindev.mcshop.common.payload.ApiResponse;
 import com.marcoindev.mcshop.product.entity.ProductEntity;
 import com.marcoindev.mcshop.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

@@ -1,11 +1,11 @@
 package com.marcoindev.mcshop.user.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.marcoindev.mcshop.user.entity.UserProfileEntity;
 import com.marcoindev.mcshop.user.exception.profile.ProfileNotFoundException;
 import com.marcoindev.mcshop.user.payload.request.CreateProfileRequest;
 import com.marcoindev.mcshop.user.payload.response.UserProfileResponse;
 import com.marcoindev.mcshop.user.repository.UserProfileMapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.marcoindev.mcshop.user.service.UserProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
