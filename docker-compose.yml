@@ -67,18 +67,19 @@ services:
     networks:
       - mcshop-network
 
-  payment-service:
+  product-service:
     build:
-      context: payment-service
+      context: product-service
       target: docker
       dockerfile: Dockerfile
-    container_name: "payment-service"
+    container_name: "product-service"
     env_file:
       - .env
     ports:
-      - "8085:8085"
+      - "8083:8083"
     depends_on:
       - mcshop-db
+      - redis
     networks:
       - mcshop-network
 

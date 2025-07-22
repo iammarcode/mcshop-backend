@@ -10,18 +10,11 @@ spring:
           uri: http://user-service:8082
           predicates:
             - Path=/api/v1/user/**
-        - id: chat-service-route
-          uri: http://chat-service:8083
+        - id: product-service-route
+          uri: http://product-service:8083
           predicates:
-            - Path=/api/v1/chat/**
-        - id: subscription-service-route
-          uri: http://subscription-service:8084
-          predicates:
-            - Path=/api/v1/subscription/**
-        - id: payment-service-route
-          uri: http://payment-service:8085
-          predicates:
-            - Path=/api/v1/payment/**
+            - Path=/api/v1/product/**
+
   datasource:
     url: jdbc:mysql://mcshop-db/mcshop
   data:

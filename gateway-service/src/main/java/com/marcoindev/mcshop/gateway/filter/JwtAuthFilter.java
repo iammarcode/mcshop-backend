@@ -69,6 +69,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private boolean isWhitelisted(String path) {
         String[] whiteList = {
                 "/api/v1/auth/**",
+                "/api/v1/product/**",
                 "/api-docs/**",
                 "/swagger-ui/**"
         };
