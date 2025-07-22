@@ -1,5 +1,6 @@
 package com.marcoindev.mcshop.auth.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.marcoindev.mcshop.auth.entity.RefreshTokenEntity;
 import com.marcoindev.mcshop.auth.entity.UserEntity;
 import com.marcoindev.mcshop.auth.exception.auth.OtpValidationFailedException;
@@ -15,7 +16,7 @@ import com.marcoindev.mcshop.auth.payload.request.UserRegisterRequest;
 import com.marcoindev.mcshop.auth.payload.response.RefreshTokenResponse;
 import com.marcoindev.mcshop.auth.payload.response.UserLoginResponse;
 import com.marcoindev.mcshop.auth.payload.response.UserRegisterResponse;
-import com.marcoindev.mcshop.auth.repository.UserRepository;
+import com.marcoindev.mcshop.auth.repository.UserMapper;
 import com.marcoindev.mcshop.auth.service.AuthService;
 import com.marcoindev.mcshop.auth.service.RefreshTokenService;
 import com.marcoindev.mcshop.common.email.service.EmailService;
@@ -26,15 +27,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthServiceImpl implements AuthService {
-    private final UserRepository userRepository;
+    private final UserMapper userMapper;
     private final OtpService otpService;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
     private final RefreshTokenService refreshTokenService;
     private final UserClient userClient;
 
-    public AuthServiceImpl(UserRepository userRepository, OtpService otpService, JwtUtil jwtUtil, EmailService emailService, RefreshTokenService refreshTokenService, UserClient userClient) {
-        this.userRepository = userRepository;
+    public AuthServiceImpl(UserMapper userMapper, OtpService otpService, JwtUtil jwtUtil, EmailService emailService, RefreshTokenService refreshTokenService, UserClient userClient) {
+        this.userMapper = userMapper;
         this.otpService = otpService;
         this.jwtUtil = jwtUtil;
         this.emailService = emailService;
@@ -45,7 +46,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void requestOtp(String email) {
         // check email
-        boolean existsByEmail = userRepository.existsByEmail(email);
+        boolean existsByEmail = userMapper.selectCount(new QueryWrapper<UserEntity>().eq("email", email)) > 0;
         if (existsByEmail) {
             throw new UserAlreadyExistException("User already exist with email: " + email);
         }
@@ -71,7 +72,9 @@ public class AuthServiceImpl implements AuthService {
                 .username(request.getUsername())
                 .password(request.getPassword())
                 .build();
-        UserEntity userSaved = userRepository.save(userEntity);
+        UserEntity userSaved = null;
+        userMapper.insert(userEntity);
+        userSaved = userEntity;
 
         // create user profile
         UserProfileDto userProfileDto = UserProfileDto.builder()
@@ -99,9 +102,10 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserLoginResponse login(UserLoginRequest userLoginReq) {
-        UserEntity userFound = userRepository.findByEmail(userLoginReq.getEmail()).orElseThrow(
-                () -> new UserNotFoundException("User not found with email: " + userLoginReq.getEmail())
-        );
+        UserEntity userFound = userMapper.selectOne(new QueryWrapper<UserEntity>().eq("email", userLoginReq.getEmail()));
+        if (userFound == null) {
+            throw new UserNotFoundException("User not found with email: " + userLoginReq.getEmail());
+        }
 
         String accessToken = jwtUtil.genAccessToken(userFound.getId());
         String refreshToken = jwtUtil.genRefreshToken(userFound.getId());
@@ -133,9 +137,10 @@ public class AuthServiceImpl implements AuthService {
 
         // verify user
         String userId = jwtUtil.getSubject(oldRefreshToken);
-        UserEntity userFound = userRepository.findById(userId).orElseThrow(
-                () -> new UserNotFoundException("User not found with email: " + userId)
-        );
+        UserEntity userFound = userMapper.selectById(userId);
+        if (userFound == null) {
+            throw new UserNotFoundException("User not found with email: " + userId);
+        }
 
         // disable old refresh token
         refreshTokenService.deleteByToken(oldRefreshTokenFound);

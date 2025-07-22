@@ -1,11 +1,10 @@
 package com.marcoindev.mcshop.product.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.marcoindev.mcshop.common.payload.ApiResponse;
 import com.marcoindev.mcshop.product.entity.ProductEntity;
 import com.marcoindev.mcshop.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,11 +21,11 @@ public class ProductController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<ApiResponse<Page<ProductEntity>>> getAllProducts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Page<ProductEntity> products = productService.getAllProducts(PageRequest.of(page, size));
-        return ResponseEntity.ok(ApiResponse.<Page<ProductEntity>>builder().data(products).build());
+    public ResponseEntity<ApiResponse<IPage<ProductEntity>>> getAllProducts(
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long size) {
+        IPage<ProductEntity> products = productService.getAllProducts(page, size);
+        return ResponseEntity.ok(ApiResponse.<IPage<ProductEntity>>builder().data(products).build());
     }
 
     @GetMapping("/{id}")

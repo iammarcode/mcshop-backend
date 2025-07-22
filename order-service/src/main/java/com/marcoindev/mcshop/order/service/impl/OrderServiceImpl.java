@@ -3,7 +3,7 @@ package com.marcoindev.mcshop.order.service.impl;
 import com.marcoindev.mcshop.order.config.RabbitMQConfig;
 import com.marcoindev.mcshop.order.payload.request.OrderCreateRequest;
 import com.marcoindev.mcshop.order.payload.response.OrderCreateResponse;
-import com.marcoindev.mcshop.order.repository.OrderRepository;
+import com.marcoindev.mcshop.order.repository.OrderMapper;
 import com.marcoindev.mcshop.order.service.OrderService;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
-    private final OrderRepository orderRepository;
+    private final OrderMapper orderMapper;
     private final RabbitTemplate rabbitTemplate;
 
     @Value("${stripe.api.key}")
@@ -47,14 +47,14 @@ public class OrderServiceImpl implements OrderService {
             PaymentIntent paymentIntent = PaymentIntent.create(params);
 
             // TODO: Save payment record
-//            OrderEntity entity = OrderEntity.builder()
-//                    .userId(request.getUserId())
-//                    .amount(request.getAmount())
-//                    .currency(request.getCurrency())
-//                    .status(paymentIntent.getStatus())
-//                    .gatewayId(paymentIntent.getId())
-//                    .build();
-//            orderRepository.save(entity);
+            // OrderEntity entity = OrderEntity.builder()
+            //         .userId(request.getUserId())
+            //         .amount(request.getAmount())
+            //         .currency(request.getCurrency())
+            //         .status(paymentIntent.getStatus())
+            //         .gatewayId(paymentIntent.getId())
+            //         .build();
+            // orderMapper.insert(entity);
 
         } catch (StripeException e) {
             // Handle error and retry logic

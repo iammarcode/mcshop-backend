@@ -1,22 +1,16 @@
 package com.marcoindev.mcshop.order.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Entity
-@Table(name = "order")
+@TableName("order")
 public class OrderEntity {
-    @Id
-    @UuidGenerator
-    @Column(columnDefinition = "CHAR(36)", nullable = false)
+    @TableId(value = "id")
     private String id;
 }

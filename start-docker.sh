@@ -2,7 +2,7 @@
 
 set -e
 
-cp .env.template .env
+# cp .env.template .env
 
 chmod -R 777 ./data/mysql/init
 

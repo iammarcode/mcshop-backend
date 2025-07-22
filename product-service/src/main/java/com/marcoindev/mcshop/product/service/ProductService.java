@@ -1,12 +1,11 @@
 package com.marcoindev.mcshop.product.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.marcoindev.mcshop.product.entity.ProductEntity;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 import java.util.Optional;
 
 public interface ProductService {
-    Page<ProductEntity> getAllProducts(Pageable pageable);
+    IPage<ProductEntity> getAllProducts(long page, long size);
     Optional<ProductEntity> getProductById(String id);
 }
