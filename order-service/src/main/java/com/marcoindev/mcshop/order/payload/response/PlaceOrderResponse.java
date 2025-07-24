@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class PurchaseResponse {
+public class PlaceOrderResponse {
     private boolean success;
     private String orderId;
     private String message;

@@ -5,7 +5,7 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class PurchaseRequest {
+public class PlaceOrderRequest {
     private String userId;
     private List<ProductOrder> products; // List of productId and quantity
     private String userAddressId;

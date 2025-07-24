@@ -4,9 +4,10 @@ import com.marcoindev.mcshop.order.entity.OrderEntity;
 import com.marcoindev.mcshop.order.entity.OrderItemEntity;
 import com.marcoindev.mcshop.order.entity.OrderTransactionEntity;
 import com.marcoindev.mcshop.order.feign.ProductFeignClient;
+import com.marcoindev.mcshop.order.feign.ProductFeignClient.ProductDTO;
 import com.marcoindev.mcshop.order.feign.ProductInventoryClient;
-import com.marcoindev.mcshop.order.payload.request.PurchaseRequest;
-import com.marcoindev.mcshop.order.payload.response.PurchaseResponse;
+import com.marcoindev.mcshop.order.payload.request.PlaceOrderRequest;
+import com.marcoindev.mcshop.order.payload.response.PlaceOrderResponse;
 import com.marcoindev.mcshop.order.repository.OrderItemMapper;
 import com.marcoindev.mcshop.order.repository.OrderMapper;
 import com.marcoindev.mcshop.order.repository.OrderTransactionMapper;
@@ -45,28 +46,28 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public PurchaseResponse purchaseProduct(PurchaseRequest request) {
+    public PlaceOrderResponse placeOrder(PlaceOrderRequest request) {
         List<String> reservedProductIds = new ArrayList<>();
         Map<String, Integer> reservedQuantities = new HashMap<>();
         BigDecimal total = BigDecimal.ZERO;
-        Map<String, ProductFeignClient.ProductDTO> productDTOs = new HashMap<>();
-        String lockKey = PRODUCT_LOCK_PREFIX + request.getProducts().stream().map(PurchaseRequest.ProductOrder::getProductId).sorted().reduce("", String::concat);
+        Map<String, ProductDTO> productDTOs = new HashMap<>();
+        String lockKey = PRODUCT_LOCK_PREFIX + request.getProducts().stream().map(PlaceOrderRequest.ProductOrder::getProductId).sorted().reduce("", String::concat);
         RLock lock = redissonClient.getLock(lockKey);
         boolean locked = false;
         try {
             locked = lock.tryLock(10, 5, TimeUnit.SECONDS);
             if (!locked) {
-                return PurchaseResponse.builder().success(false).message("System busy, try again.").build();
+                return PlaceOrderResponse.builder().success(false).message("System busy, try again.").build();
             }
             // 1. Reserve inventory and fetch price for all products
             List<SessionCreateParams.LineItem> lineItems = new ArrayList<>();
-            for (PurchaseRequest.ProductOrder po : request.getProducts()) {
+            for (PlaceOrderRequest.ProductOrder po : request.getProducts()) {
                 boolean reserved = inventoryClient.reserveInventory(po.getProductId(), po.getQuantity());
                 if (!reserved) {
                     for (String pid : reservedProductIds) {
                         inventoryClient.releaseInventory(pid, reservedQuantities.get(pid));
                     }
-                    return PurchaseResponse.builder().success(false).message("Insufficient inventory for product: " + po.getProductId()).build();
+                    return PlaceOrderResponse.builder().success(false).message("Insufficient inventory for product: " + po.getProductId()).build();
                 }
                 reservedProductIds.add(po.getProductId());
                 reservedQuantities.put(po.getProductId(), po.getQuantity());
@@ -75,7 +76,7 @@ public class OrderServiceImpl implements OrderService {
                     for (String pid : reservedProductIds) {
                         inventoryClient.releaseInventory(pid, reservedQuantities.get(pid));
                     }
-                    return PurchaseResponse.builder().success(false).message("Product not found or price missing: " + po.getProductId()).build();
+                    return PlaceOrderResponse.builder().success(false).message("Product not found or price missing: " + po.getProductId()).build();
                 }
                 total = total.add(product.getPrice().multiply(BigDecimal.valueOf(po.getQuantity())));
                 productDTOs.put(po.getProductId(), product);
@@ -133,7 +134,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
             orderTransactionMapper.insert(transaction);
             // 5. Create order items for each product
-            for (PurchaseRequest.ProductOrder po : request.getProducts()) {
+            for (PlaceOrderRequest.ProductOrder po : request.getProducts()) {
                 OrderItemEntity orderItem = OrderItemEntity.builder()
                     .id(UUID.randomUUID().toString())
                     .quantity(po.getQuantity())
@@ -145,7 +146,7 @@ public class OrderServiceImpl implements OrderService {
                 orderItemMapper.insert(orderItem);
             }
             // 6. Return Stripe Checkout session URL to client
-            return PurchaseResponse.builder()
+            return PlaceOrderResponse.builder()
                 .success(true)
                 .orderId(orderId)
                 .message("Redirect to Stripe Checkout")
@@ -155,7 +156,7 @@ public class OrderServiceImpl implements OrderService {
             for (String pid : reservedProductIds) {
                 inventoryClient.releaseInventory(pid, reservedQuantities.get(pid));
             }
-            return PurchaseResponse.builder().success(false).message("Purchase failed: " + e.getMessage()).build();
+            return PlaceOrderResponse.builder().success(false).message("Purchase failed: " + e.getMessage()).build();
         } finally {
             if (locked) lock.unlock();
         }
