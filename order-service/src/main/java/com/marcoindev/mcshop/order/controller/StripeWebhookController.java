@@ -1,20 +1,22 @@
 package com.marcoindev.mcshop.order.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.marcoindev.mcshop.order.entity.OrderEntity;
 import com.marcoindev.mcshop.order.entity.OrderItemEntity;
 import com.marcoindev.mcshop.order.entity.OrderTransactionEntity;
 import com.marcoindev.mcshop.order.feign.ProductFeignClient;
 import com.marcoindev.mcshop.order.repository.OrderItemMapper;
 import com.marcoindev.mcshop.order.repository.OrderMapper;
+import com.marcoindev.mcshop.order.repository.OrderTransactionMapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.PaymentIntent;
 import com.stripe.net.Webhook;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,10 +25,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/order/stripe/webhook")
 @RequiredArgsConstructor
+@Slf4j
 public class StripeWebhookController {
     private final OrderMapper orderMapper;
     private final ProductFeignClient productFeignClient;
     private final OrderItemMapper orderItemMapper;
+    private final OrderTransactionMapper orderTransactionMapper;
 
     @Value("${stripe.webhook.secret}")
     private String endpointSecret;
@@ -35,51 +39,92 @@ public class StripeWebhookController {
     public String handleStripeEvent(@RequestHeader("Stripe-Signature") String sigHeader, @RequestBody String payload) {
         try {
             Event event = Webhook.constructEvent(payload, sigHeader, endpointSecret);
-            String rawJson = event.getDataObjectDeserializer().getRawJson();
-            JsonObject eventJson = JsonParser.parseString(rawJson).getAsJsonObject();
 
-            if ("payment_intent.succeeded".equals(event.getType())) {
-                String orderId = eventJson.getAsJsonObject("metadata").get("orderId").getAsString();
-                OrderEntity order = orderMapper.selectById(orderId);
-                if (order != null && !"PAID".equals(order.getStatus())) {
-                    //1.update order
-                    order.setStatus("PAID");
-                    order.setPaymentIntentId(eventJson.get("id").getAsString());
-                    orderMapper.updateById(order);
-
-                    //2.update transaction acc, status
-                    UpdateWrapper<OrderTransactionEntity> transactionWrapper = new UpdateWrapper<>();
-                    transactionWrapper.eq("order_id", orderId)
-                            .isNull("deleted_at")
-                            .set("status", "PAID");
-
-                    //3.finalize inventory
-                    QueryWrapper<OrderItemEntity> queryWrapper = new QueryWrapper<>();
-                    queryWrapper.eq("order_id", orderId)
-                            .isNull("deleted_at")
-                            .select("product_id", "quantity");
-                    List<OrderItemEntity> orderItems = orderItemMapper.selectList(queryWrapper);
-                    for (OrderItemEntity orderItem : orderItems) {
-                        productFeignClient.finalizeInventory(orderItem.getProductId(), orderItem.getQuantity());
+            // Handle PaymentIntent events
+            if ("payment_intent.succeeded".equals(event.getType()) || "payment_intent.failed".equals(event.getType())) {
+                EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
+                PaymentIntent intent = null;
+                if (deserializer.getObject().isPresent()) {
+                    intent = (PaymentIntent) deserializer.getObject().get();
+                } else if (deserializer.getRawJson() != null) {
+                    JsonObject eventJson = JsonParser.parseString(deserializer.getRawJson()).getAsJsonObject();
+                    String id = eventJson.get("id").getAsString();
+                    JsonObject metadata = eventJson.has("metadata") ? eventJson.getAsJsonObject("metadata") : null;
+                    String orderId = metadata != null && metadata.has("orderId") ? metadata.get("orderId").getAsString() : null;
+                    if (orderId != null) {
+                        updateOrderStatus(event.getType(), orderId, id);
                     }
-
-                    //TODO: 4.send notification
+                    return "success";
+                } else {
+                    return "error";
                 }
-            } else if ("payment_intent.failed".equals(event.getType())) {
-                PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer().getObject().get();
                 String orderId = intent.getMetadata().get("orderId");
-                OrderEntity order = orderMapper.selectById(orderId);
-                if (order != null && !"PAYMENT_FAILED".equals(order.getStatus())) {
-                    order.setStatus("PAYMENT_FAILED");
-                    order.setPaymentIntentId(intent.getId());
-                    orderMapper.updateById(order);
-                    // TODO: Release inventory if not already done (double-check logic)
+                updateOrderStatus(event.getType(), orderId, intent.getId());
+                return "success";
+            }
+
+            // Handle Checkout Session events (for Stripe Checkout)
+            if ("checkout.session.completed".equals(event.getType())) {
+                EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
+                if (deserializer.getObject().isPresent()) {
+                    com.stripe.model.checkout.Session session = (com.stripe.model.checkout.Session) deserializer.getObject().get();
+                    String orderId = session.getMetadata().get("orderId");
+                    updateOrderStatus("payment_intent.succeeded", orderId, session.getPaymentIntent());
+                    return "success";
                 }
             }
-            return "success";
+
+            return "ignored";
         } catch (Exception e) {
             return "error";
         }
-        // TODO: Extend webhook to handle more Stripe event types as needed
+    }
+
+    private void updateOrderStatus(String eventType, String orderId, String paymentIntentId) {
+        OrderEntity order = orderMapper.selectById(orderId);
+        if (order == null) return;
+        
+        if ("payment_intent.succeeded".equals(eventType)) {
+            if (!"PAID".equals(order.getStatus())) {
+                // Update order status
+                order.setStatus("PAID");
+                order.setPaymentIntentId(paymentIntentId);
+                orderMapper.updateById(order);
+                
+                // Update transaction status
+                UpdateWrapper<OrderTransactionEntity> transactionWrapper = new UpdateWrapper<>();
+                transactionWrapper.eq("order_id", orderId)
+                        .isNull("deleted_at")
+                        .set("status", "PAID")
+                        .set("account_no", paymentIntentId);
+                orderTransactionMapper.update(null, transactionWrapper);
+                
+                // Finalize inventory
+                QueryWrapper<OrderItemEntity> queryWrapper = new QueryWrapper<>();
+                queryWrapper.eq("order_id", orderId).isNull("deleted_at").select("product_id", "quantity");
+                List<OrderItemEntity> orderItems = orderItemMapper.selectList(queryWrapper);
+                for (OrderItemEntity orderItem : orderItems) {
+                    productFeignClient.finalizeInventory(orderItem.getProductId(), orderItem.getQuantity());
+                }
+                // TODO: send notification
+            }
+        } else if ("payment_intent.failed".equals(eventType)) {
+            if (!"PAYMENT_FAILED".equals(order.getStatus())) {
+                // Update order status
+                order.setStatus("PAYMENT_FAILED");
+                order.setPaymentIntentId(paymentIntentId);
+                orderMapper.updateById(order);
+                
+                // Update transaction status
+                UpdateWrapper<OrderTransactionEntity> transactionWrapper = new UpdateWrapper<>();
+                transactionWrapper.eq("order_id", orderId)
+                        .isNull("deleted_at")
+                        .set("status", "FAILED")
+                        .set("account_no", paymentIntentId);
+                orderTransactionMapper.update(null, transactionWrapper);
+                
+                // TODO: release inventory
+            }
+        }
     }
 } 
