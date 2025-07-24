@@ -3,8 +3,8 @@ package com.marcoindev.mcshop.order.service.impl;
 import com.marcoindev.mcshop.order.entity.OrderEntity;
 import com.marcoindev.mcshop.order.entity.OrderItemEntity;
 import com.marcoindev.mcshop.order.entity.OrderTransactionEntity;
+import com.marcoindev.mcshop.order.exception.APIRuntimeException;
 import com.marcoindev.mcshop.order.feign.ProductFeignClient;
-import com.marcoindev.mcshop.order.feign.ProductFeignClient.ProductDTO;
 import com.marcoindev.mcshop.order.payload.request.PlaceOrderRequest;
 import com.marcoindev.mcshop.order.payload.request.PlaceOrderRequest.ProductOrder;
 import com.marcoindev.mcshop.order.payload.response.PlaceOrderResponse;
@@ -48,7 +48,6 @@ public class OrderServiceImpl implements OrderService {
         List<String> reservedProductIds = new ArrayList<>();
         Map<String, Integer> reservedQuantities = new HashMap<>();
         BigDecimal total = BigDecimal.ZERO;
-        Map<String, ProductDTO> productDTOs = new HashMap<>();
         String lockKey = PRODUCT_LOCK_PREFIX + request.getProducts().stream().map(PlaceOrderRequest.ProductOrder::getProductId).sorted().reduce("", String::concat);
         RLock lock = redissonClient.getLock(lockKey);
         boolean locked = false;
@@ -65,7 +64,7 @@ public class OrderServiceImpl implements OrderService {
                     for (String pid : reservedProductIds) {
                         productFeignClient.releaseInventory(pid, reservedQuantities.get(pid));
                     }
-                    return PlaceOrderResponse.builder().success(false).message("Insufficient inventory for product: " + po.getProductId()).build();
+                    throw new APIRuntimeException("Insufficient inventory for product: " + po.getProductId());
                 }
                 reservedProductIds.add(po.getProductId());
                 reservedQuantities.put(po.getProductId(), po.getQuantity());
@@ -74,10 +73,9 @@ public class OrderServiceImpl implements OrderService {
                     for (String pid : reservedProductIds) {
                         productFeignClient.releaseInventory(pid, reservedQuantities.get(pid));
                     }
-                    return PlaceOrderResponse.builder().success(false).message("Product not found or price missing: " + po.getProductId()).build();
+                    throw new APIRuntimeException("Product not found or price missing: " + po.getProductId());
                 }
                 total = total.add(product.getPrice().multiply(BigDecimal.valueOf(po.getQuantity())));
-                productDTOs.put(po.getProductId(), product);
                 // Build Stripe Checkout line item
                 lineItems.add(
                     SessionCreateParams.LineItem.builder()
@@ -148,7 +146,7 @@ public class OrderServiceImpl implements OrderService {
             for (String pid : reservedProductIds) {
                 productFeignClient.releaseInventory(pid, reservedQuantities.get(pid));
             }
-            return PlaceOrderResponse.builder().success(false).message("Purchase failed: " + e.getMessage()).build();
+            throw new APIRuntimeException("Purchase failed: " + e.getMessage());
         } finally {
             if (locked) lock.unlock();
         }

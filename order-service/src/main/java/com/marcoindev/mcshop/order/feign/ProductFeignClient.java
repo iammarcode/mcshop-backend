@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 
 @FeignClient(
         name = "${product.service.name}",
-        url = "${product.service.url}"
+        path = "${product.service.path}"
 )
 public interface ProductFeignClient {
     // product
