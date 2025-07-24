@@ -2,6 +2,8 @@ package com.marcoindev.mcshop.order.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.marcoindev.mcshop.order.entity.OrderEntity;
 import com.marcoindev.mcshop.order.entity.OrderItemEntity;
 import com.marcoindev.mcshop.order.entity.OrderTransactionEntity;
@@ -9,6 +11,7 @@ import com.marcoindev.mcshop.order.feign.ProductFeignClient;
 import com.marcoindev.mcshop.order.repository.OrderItemMapper;
 import com.marcoindev.mcshop.order.repository.OrderMapper;
 import com.stripe.model.Event;
+import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.PaymentIntent;
 import com.stripe.net.Webhook;
 import lombok.RequiredArgsConstructor;
@@ -32,14 +35,16 @@ public class StripeWebhookController {
     public String handleStripeEvent(@RequestHeader("Stripe-Signature") String sigHeader, @RequestBody String payload) {
         try {
             Event event = Webhook.constructEvent(payload, sigHeader, endpointSecret);
+            String rawJson = event.getDataObjectDeserializer().getRawJson();
+            JsonObject eventJson = JsonParser.parseString(rawJson).getAsJsonObject();
+
             if ("payment_intent.succeeded".equals(event.getType())) {
-                PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer().getObject().get();
-                String orderId = intent.getMetadata().get("orderId");
+                String orderId = eventJson.getAsJsonObject("metadata").get("orderId").getAsString();
                 OrderEntity order = orderMapper.selectById(orderId);
                 if (order != null && !"PAID".equals(order.getStatus())) {
                     //1.update order
                     order.setStatus("PAID");
-                    order.setPaymentIntentId(intent.getId());
+                    order.setPaymentIntentId(eventJson.get("id").getAsString());
                     orderMapper.updateById(order);
 
                     //2.update transaction acc, status
