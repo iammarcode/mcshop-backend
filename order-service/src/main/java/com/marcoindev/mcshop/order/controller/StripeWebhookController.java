@@ -1,7 +1,6 @@
 package com.marcoindev.mcshop.order.controller;
 
 import com.marcoindev.mcshop.order.entity.OrderEntity;
-import com.marcoindev.mcshop.order.feign.ProductInventoryClient;
 import com.marcoindev.mcshop.order.repository.OrderMapper;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
@@ -15,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class StripeWebhookController {
     private final OrderMapper orderMapper;
-    private final ProductInventoryClient inventoryClient;
 
     @Value("${stripe.webhook.secret}")
     private String endpointSecret;

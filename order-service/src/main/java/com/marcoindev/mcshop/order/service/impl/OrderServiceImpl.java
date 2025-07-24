@@ -5,7 +5,6 @@ import com.marcoindev.mcshop.order.entity.OrderItemEntity;
 import com.marcoindev.mcshop.order.entity.OrderTransactionEntity;
 import com.marcoindev.mcshop.order.feign.ProductFeignClient;
 import com.marcoindev.mcshop.order.feign.ProductFeignClient.ProductDTO;
-import com.marcoindev.mcshop.order.feign.ProductInventoryClient;
 import com.marcoindev.mcshop.order.payload.request.PlaceOrderRequest;
 import com.marcoindev.mcshop.order.payload.response.PlaceOrderResponse;
 import com.marcoindev.mcshop.order.repository.OrderItemMapper;
@@ -35,7 +34,6 @@ public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final OrderTransactionMapper orderTransactionMapper;
-    private final ProductInventoryClient inventoryClient;
     private final RedissonClient redissonClient = Redisson.create();
     private final RabbitTemplate rabbitTemplate;
     private final ProductFeignClient productFeignClient;
@@ -62,10 +60,10 @@ public class OrderServiceImpl implements OrderService {
             // 1. Reserve inventory and fetch price for all products
             List<SessionCreateParams.LineItem> lineItems = new ArrayList<>();
             for (PlaceOrderRequest.ProductOrder po : request.getProducts()) {
-                boolean reserved = inventoryClient.reserveInventory(po.getProductId(), po.getQuantity());
+                boolean reserved = productFeignClient.reserveInventory(po.getProductId(), po.getQuantity());
                 if (!reserved) {
                     for (String pid : reservedProductIds) {
-                        inventoryClient.releaseInventory(pid, reservedQuantities.get(pid));
+                        productFeignClient.releaseInventory(pid, reservedQuantities.get(pid));
                     }
                     return PlaceOrderResponse.builder().success(false).message("Insufficient inventory for product: " + po.getProductId()).build();
                 }
@@ -74,7 +72,7 @@ public class OrderServiceImpl implements OrderService {
                 var product = productFeignClient.getProductById(po.getProductId());
                 if (product == null || product.getPrice() == null) {
                     for (String pid : reservedProductIds) {
-                        inventoryClient.releaseInventory(pid, reservedQuantities.get(pid));
+                        productFeignClient.releaseInventory(pid, reservedQuantities.get(pid));
                     }
                     return PlaceOrderResponse.builder().success(false).message("Product not found or price missing: " + po.getProductId()).build();
                 }
@@ -154,7 +152,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
         } catch (Exception e) {
             for (String pid : reservedProductIds) {
-                inventoryClient.releaseInventory(pid, reservedQuantities.get(pid));
+                productFeignClient.releaseInventory(pid, reservedQuantities.get(pid));
             }
             return PlaceOrderResponse.builder().success(false).message("Purchase failed: " + e.getMessage()).build();
         } finally {
