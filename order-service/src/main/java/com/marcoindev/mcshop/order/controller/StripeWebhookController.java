@@ -1,6 +1,12 @@
 package com.marcoindev.mcshop.order.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.marcoindev.mcshop.order.entity.OrderEntity;
+import com.marcoindev.mcshop.order.entity.OrderItemEntity;
+import com.marcoindev.mcshop.order.entity.OrderTransactionEntity;
+import com.marcoindev.mcshop.order.feign.ProductFeignClient;
+import com.marcoindev.mcshop.order.repository.OrderItemMapper;
 import com.marcoindev.mcshop.order.repository.OrderMapper;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
@@ -9,11 +15,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
-@RequestMapping("/api/v1/stripe/webhook")
+@RequestMapping("/api/v1/order/stripe/webhook")
 @RequiredArgsConstructor
 public class StripeWebhookController {
     private final OrderMapper orderMapper;
+    private final ProductFeignClient productFeignClient;
+    private final OrderItemMapper orderItemMapper;
 
     @Value("${stripe.webhook.secret}")
     private String endpointSecret;
@@ -27,10 +37,28 @@ public class StripeWebhookController {
                 String orderId = intent.getMetadata().get("orderId");
                 OrderEntity order = orderMapper.selectById(orderId);
                 if (order != null && !"PAID".equals(order.getStatus())) {
+                    //1.update order
                     order.setStatus("PAID");
                     order.setPaymentIntentId(intent.getId());
                     orderMapper.updateById(order);
-                    // TODO: Finalize inventory if not already done (double-check logic)
+
+                    //2.update transaction acc, status
+                    UpdateWrapper<OrderTransactionEntity> transactionWrapper = new UpdateWrapper<>();
+                    transactionWrapper.eq("order_id", orderId)
+                            .isNull("deleted_at")
+                            .set("status", "PAID");
+
+                    //3.finalize inventory
+                    QueryWrapper<OrderItemEntity> queryWrapper = new QueryWrapper<>();
+                    queryWrapper.eq("order_id", orderId)
+                            .isNull("deleted_at")
+                            .select("product_id", "quantity");
+                    List<OrderItemEntity> orderItems = orderItemMapper.selectList(queryWrapper);
+                    for (OrderItemEntity orderItem : orderItems) {
+                        productFeignClient.finalizeInventory(orderItem.getProductId(), orderItem.getQuantity());
+                    }
+
+                    //TODO: 4.send notification
                 }
             } else if ("payment_intent.failed".equals(event.getType())) {
                 PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer().getObject().get();

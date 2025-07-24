@@ -19,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import org.redisson.Redisson;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +34,6 @@ public class OrderServiceImpl implements OrderService {
     private final OrderItemMapper orderItemMapper;
     private final OrderTransactionMapper orderTransactionMapper;
     private final RedissonClient redissonClient = Redisson.create();
-    private final RabbitTemplate rabbitTemplate;
     private final ProductFeignClient productFeignClient;
     @Value("${stripe.api.key}")
     private String stripeApiKey;
@@ -54,7 +52,7 @@ public class OrderServiceImpl implements OrderService {
         try {
             locked = lock.tryLock(10, 5, TimeUnit.SECONDS);
             if (!locked) {
-                return PlaceOrderResponse.builder().success(false).message("System busy, try again.").build();
+                throw new APIRuntimeException("System busy, try again.");
             }
             // 1. Reserve inventory and fetch price for all products
             List<SessionCreateParams.LineItem> lineItems = new ArrayList<>();
