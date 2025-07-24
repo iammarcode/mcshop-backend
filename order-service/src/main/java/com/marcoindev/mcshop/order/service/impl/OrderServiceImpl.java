@@ -6,6 +6,7 @@ import com.marcoindev.mcshop.order.entity.OrderTransactionEntity;
 import com.marcoindev.mcshop.order.feign.ProductFeignClient;
 import com.marcoindev.mcshop.order.feign.ProductFeignClient.ProductDTO;
 import com.marcoindev.mcshop.order.payload.request.PlaceOrderRequest;
+import com.marcoindev.mcshop.order.payload.request.PlaceOrderRequest.ProductOrder;
 import com.marcoindev.mcshop.order.payload.response.PlaceOrderResponse;
 import com.marcoindev.mcshop.order.repository.OrderItemMapper;
 import com.marcoindev.mcshop.order.repository.OrderMapper;
@@ -24,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -59,7 +59,7 @@ public class OrderServiceImpl implements OrderService {
             }
             // 1. Reserve inventory and fetch price for all products
             List<SessionCreateParams.LineItem> lineItems = new ArrayList<>();
-            for (PlaceOrderRequest.ProductOrder po : request.getProducts()) {
+            for (ProductOrder po : request.getProducts()) {
                 boolean reserved = productFeignClient.reserveInventory(po.getProductId(), po.getQuantity());
                 if (!reserved) {
                     for (String pid : reservedProductIds) {
@@ -69,7 +69,7 @@ public class OrderServiceImpl implements OrderService {
                 }
                 reservedProductIds.add(po.getProductId());
                 reservedQuantities.put(po.getProductId(), po.getQuantity());
-                var product = productFeignClient.getProductById(po.getProductId());
+                var product = productFeignClient.getProductById(po.getProductId()).data;
                 if (product == null || product.getPrice() == null) {
                     for (String pid : reservedProductIds) {
                         productFeignClient.releaseInventory(pid, reservedQuantities.get(pid));
@@ -88,7 +88,7 @@ public class OrderServiceImpl implements OrderService {
                                 .setUnitAmount(product.getPrice().movePointRight(2).longValue())
                                 .setProductData(
                                     SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                        .setName("Product: " + po.getProductId()) // TODO: fetch real name if needed
+                                        .setName("Product: " + product.getName())
                                         .build()
                                 )
                                 .build()
@@ -104,8 +104,6 @@ public class OrderServiceImpl implements OrderService {
                 .total(total)
                 .userId(request.getUserId())
                 .userAddressId(request.getUserAddressId())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
             orderMapper.insert(order);
             // 3. Create Stripe Checkout Session
@@ -127,19 +125,15 @@ public class OrderServiceImpl implements OrderService {
                 .status("PENDING")
                 .orderId(orderId)
                 .idempotencyKey(session.getId())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
             orderTransactionMapper.insert(transaction);
             // 5. Create order items for each product
-            for (PlaceOrderRequest.ProductOrder po : request.getProducts()) {
+            for (ProductOrder po : request.getProducts()) {
                 OrderItemEntity orderItem = OrderItemEntity.builder()
                     .id(UUID.randomUUID().toString())
                     .quantity(po.getQuantity())
                     .orderId(orderId)
                     .productId(po.getProductId())
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
                     .build();
                 orderItemMapper.insert(orderItem);
             }

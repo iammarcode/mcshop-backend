@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS `product_category` (
 CREATE TABLE IF NOT EXISTS `product_inventory` (
     `id` CHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'ID',
     `quantity` INT NOT NULL COMMENT 'Quantity of product',
+    `reserved_quantity` INT NOT NULL DEFAULT 0 COMMENT 'Quantity of reserved product',
     `product_id` CHAR(36) NOT NULL COMMENT 'Product ID',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Last update time',
@@ -140,18 +141,19 @@ CREATE TABLE IF NOT EXISTS `shopping_cart_item` (
 ) ENGINE=InnoDB COMMENT='Shopping cart item';
 
 -- 5. Order Service
-CREATE TABLE IF NOT EXISTS `order` (
+CREATE TABLE IF NOT EXISTS `orders` (
     `id` CHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'ID',
-    `status` VARCHAR(100) NOT NULL DEFAULT 'ORDERED' COMMENT 'Order status',
+    `status` VARCHAR(100) NOT NULL DEFAULT 'PENDING_PAYMENT' COMMENT 'Order status',
     `total` DECIMAL(10,2) NOT NULL COMMENT 'Order total',
     `user_id` CHAR(36) NOT NULL COMMENT 'User id',
     `user_address_id` CHAR(36) NOT NULL COMMENT 'User address id',
+    `payment_intent_id` CHAR(255) NULL COMMENT 'Payment intent id',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Last update time',
     `deleted_at` DATETIME NULL COMMENT 'Soft delete timestamp'
 ) ENGINE=InnoDB COMMENT='Order';
 
-CREATE TABLE IF NOT EXISTS `order_item` (
+CREATE TABLE IF NOT EXISTS `orders_item` (
     `id` CHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'Order item ID',
     `quantity` INT NOT NULL COMMENT 'Quantity',
     `order_id` CHAR(36) NOT NULL COMMENT 'Order id',
@@ -161,25 +163,15 @@ CREATE TABLE IF NOT EXISTS `order_item` (
     `deleted_at` DATETIME NULL COMMENT 'Soft delete timestamp'
 ) ENGINE=InnoDB COMMENT='Order item';
 
-CREATE TABLE IF NOT EXISTS `order_transaction` (
+CREATE TABLE IF NOT EXISTS `orders_transaction` (
     `id` CHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'Order transaction ID',
     `amount` DECIMAL(10,2) NOT NULL COMMENT 'Transaction amount',
     `provider` VARCHAR(64) NOT NULL COMMENT 'Payment provider',
-    `account_no` VARCHAR(64) NOT NULL COMMENT 'Account number',
+    `account_no` VARCHAR(64) NULL COMMENT 'Account number',
     `status` VARCHAR(64) NOT NULL DEFAULT 'PENDING' COMMENT 'Transaction status',
     `order_id` CHAR(36) NOT NULL COMMENT 'Order id',
+    `idempotency_key` CHAR(255) NOT NULL COMMENT 'idempotency key',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Last update time',
     `deleted_at` DATETIME NULL COMMENT 'Soft delete timestamp'
 ) ENGINE=InnoDB COMMENT='Order transaction';
-
--- Amend product_inventory for reservation
-ALTER TABLE product_inventory ADD COLUMN reserved_quantity INT DEFAULT 0;
-
--- Amend order for payment tracking
-ALTER TABLE `order` ADD COLUMN payment_intent_id VARCHAR(255);
-ALTER TABLE `order` ADD COLUMN status VARCHAR(32) DEFAULT 'PENDING_PAYMENT';
-
--- Amend order_transaction for idempotency
-ALTER TABLE order_transaction ADD COLUMN idempotency_key VARCHAR(255);
-

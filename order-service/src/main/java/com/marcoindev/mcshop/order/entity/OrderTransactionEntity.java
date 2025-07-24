@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@TableName("order_transaction")
+@TableName("orders_transaction")
 public class OrderTransactionEntity {
     @TableId
     private String id;

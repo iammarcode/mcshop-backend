@@ -9,15 +9,24 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.math.BigDecimal;
 
-@FeignClient(name = "${product.service.name}", url = "${product.service.path}")
+@FeignClient(
+        name = "${product.service.name}",
+        url = "${product.service.url}"
+)
 public interface ProductFeignClient {
     // product
     @GetMapping("/{id}")
-    ProductDTO getProductById(@PathVariable("id") String id);
+    ProductResponse getProductById(@PathVariable("id") String id);
 
+
+    @Data
+    class ProductResponse {
+        public ProductDTO data;
+    }
     @Data
     class ProductDTO {
         public String id;
+        public String name;
         public BigDecimal price;
     }
 

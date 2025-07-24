@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @FeignClient(
         name = "${user.service.name}",
-        path = "${user.service.path}"
+        path = "${user.service.url}"
 )
 public interface UserClient {
 

@@ -9,7 +9,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@TableName("order_item")
+@TableName("orders_item")
 public class OrderItemEntity {
     @TableId
     private String id;
