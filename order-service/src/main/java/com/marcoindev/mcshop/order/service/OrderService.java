@@ -1,9 +1,8 @@
 package com.marcoindev.mcshop.order.service;
 
-import com.marcoindev.mcshop.order.payload.request.OrderCreateRequest;
-import com.marcoindev.mcshop.order.payload.response.OrderCreateResponse;
+import com.marcoindev.mcshop.order.payload.request.PurchaseRequest;
+import com.marcoindev.mcshop.order.payload.response.PurchaseResponse;
 
 public interface OrderService {
-    OrderCreateResponse createPayment(OrderCreateRequest request);
-
+    PurchaseResponse purchaseProduct(PurchaseRequest request);
 }

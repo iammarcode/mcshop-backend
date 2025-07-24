@@ -15,11 +15,6 @@ public class ProductController {
 
     private final ProductService productService;
 
-    @GetMapping("/test")
-    public ResponseEntity<ApiResponse<String>> test(@RequestHeader("X-User-ID") String userId) {
-        return ResponseEntity.ok(ApiResponse.<String>builder().data(userId).build());
-    }
-
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<IPage<ProductEntity>>> getAllProducts(
             @RequestParam(defaultValue = "1") long page,

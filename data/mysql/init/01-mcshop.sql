@@ -173,3 +173,13 @@ CREATE TABLE IF NOT EXISTS `order_transaction` (
     `deleted_at` DATETIME NULL COMMENT 'Soft delete timestamp'
 ) ENGINE=InnoDB COMMENT='Order transaction';
 
+-- Amend product_inventory for reservation
+ALTER TABLE product_inventory ADD COLUMN reserved_quantity INT DEFAULT 0;
+
+-- Amend order for payment tracking
+ALTER TABLE `order` ADD COLUMN payment_intent_id VARCHAR(255);
+ALTER TABLE `order` ADD COLUMN status VARCHAR(32) DEFAULT 'PENDING_PAYMENT';
+
+-- Amend order_transaction for idempotency
+ALTER TABLE order_transaction ADD COLUMN idempotency_key VARCHAR(255);
+
