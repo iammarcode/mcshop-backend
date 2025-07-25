@@ -1,6 +1,9 @@
 package com.marcoindev.mcshop.order.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.marcoindev.mcshop.order.entity.OrderEntity;
 import com.marcoindev.mcshop.order.entity.OrderItemEntity;
 import com.marcoindev.mcshop.order.entity.OrderTransactionEntity;
@@ -8,13 +11,10 @@ import com.marcoindev.mcshop.order.feign.ProductFeignClient;
 import com.marcoindev.mcshop.order.repository.OrderItemMapper;
 import com.marcoindev.mcshop.order.repository.OrderMapper;
 import com.marcoindev.mcshop.order.repository.OrderTransactionMapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
-import com.stripe.model.PaymentIntent;
+import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,120 +34,169 @@ public class StripeWebhookController {
 
     @Value("${stripe.webhook.secret}")
     private String endpointSecret;
-    
+
     @PostMapping
-    public String handleStripeEvent(@RequestHeader("Stripe-Signature") String sigHeader, @RequestBody String payload) {
+    public void handleStripeEvent(@RequestHeader("Stripe-Signature") String sigHeader, @RequestBody String payload) {
         try {
+            log.info("Received Stripe webhook event with signature: {}", sigHeader);
             Event event = Webhook.constructEvent(payload, sigHeader, endpointSecret);
+            log.info("Processing event type: {}, API version: {}", event.getType(), event.getApiVersion());
 
-            // Handle PaymentIntent events
-            if ("payment_intent.succeeded".equals(event.getType()) || "payment_intent.failed".equals(event.getType())) {
-                EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
-                PaymentIntent intent = null;
-                if (deserializer.getObject().isPresent()) {
-                    intent = (PaymentIntent) deserializer.getObject().get();
-                } else if (deserializer.getRawJson() != null) {
-                    JsonObject eventJson = JsonParser.parseString(deserializer.getRawJson()).getAsJsonObject();
-                    String id = eventJson.get("id").getAsString();
-                    JsonObject metadata = eventJson.has("metadata") ? eventJson.getAsJsonObject("metadata") : null;
-                    String orderId = metadata != null && metadata.has("orderId") ? metadata.get("orderId").getAsString() : null;
-                    if (orderId != null) {
-                        updateOrderStatus(event.getType(), orderId, id);
-                    }
-                    return "success";
-                } else {
-                    return "error";
-                }
-                String orderId = intent.getMetadata().get("orderId");
-                updateOrderStatus(event.getType(), orderId, intent.getId());
-                return "success";
-            }
-
-            // Handle Checkout Session events (for Stripe Checkout)
+            // Handle Checkout Session events
             if ("checkout.session.completed".equals(event.getType())) {
-                EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
-                String orderId = null;
-                String paymentIntentId = null;
-                
-                if (deserializer.getObject().isPresent()) {
-                    com.stripe.model.checkout.Session session = (com.stripe.model.checkout.Session) deserializer.getObject().get();
-                    orderId = session.getMetadata().get("orderId");
-                    paymentIntentId = session.getPaymentIntent();
-                    log.info("Checkout session completed - orderId: {}", orderId);
-                    log.info("Session metadata: {}", session.getMetadata());
-                } else if (deserializer.getRawJson() != null) {
-                    // Fallback: parse raw JSON when deserialization fails
-                    log.info("Using fallback JSON parsing for checkout.session.completed");
-                    JsonObject eventJson = JsonParser.parseString(deserializer.getRawJson()).getAsJsonObject();
-                    JsonObject metadata = eventJson.has("metadata") ? eventJson.getAsJsonObject("metadata") : null;
-                    orderId = metadata != null && metadata.has("orderId") ? metadata.get("orderId").getAsString() : null;
-                    paymentIntentId = eventJson.has("payment_intent") ? eventJson.get("payment_intent").getAsString() : null;
-                    log.info("Fallback parsing - orderId: {}, paymentIntentId: {}", orderId, paymentIntentId);
-                } else {
-                    log.error("Could not deserialize checkout.session.completed event - no object or raw JSON available");
-                    return "error - deserialization failed";
-                }
-                
-                if (orderId != null) {
-                    updateOrderStatus("payment_intent.succeeded", orderId, paymentIntentId);
-                    return "success";
-                } else {
-                    log.error("orderId is null in checkout.session.completed event");
-                    return "error - no orderId in metadata";
-                }
+                processCheckoutSessionCompleted(event);
+            } else if ("checkout.session.async_payment_failed".equals(event.getType())) {
+                processAsyncPaymentFailed(event);
+            } else if ("checkout.session.expired".equals(event.getType())) {
+                processSessionExpired(event);
+            } else {
+                log.info("Ignoring unhandled event type: {}", event.getType());
             }
-
-            return "ignored";
         } catch (Exception e) {
-            return "error";
+            log.error("Failed to process Stripe webhook: {}", e.getMessage(), e);
         }
     }
 
-    private void updateOrderStatus(String eventType, String orderId, String paymentIntentId) {
+    private void processCheckoutSessionCompleted(Event event) {
+        log.info("Processing checkout.session.completed event");
+        EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
+        String orderId = null;
+        String paymentIntentId = null;
+
+        if (deserializer.getObject().isPresent()) {
+            Session session = (Session) deserializer.getObject().get();
+            orderId = session.getMetadata().get("orderId");
+            paymentIntentId = session.getPaymentIntent();
+            log.info("Checkout session completed - orderId: {}, paymentIntentId: {}", orderId, paymentIntentId);
+            log.debug("Session metadata: {}", session.getMetadata());
+        } else if (deserializer.getRawJson() != null) {
+            log.warn("Using fallback JSON parsing for checkout.session.completed");
+            JsonObject eventJson = JsonParser.parseString(deserializer.getRawJson()).getAsJsonObject();
+            JsonObject metadata = eventJson.has("metadata") ? eventJson.getAsJsonObject("metadata") : null;
+            orderId = metadata != null && metadata.has("orderId") ? metadata.get("orderId").getAsString() : null;
+            paymentIntentId = eventJson.has("payment_intent") ? eventJson.get("payment_intent").getAsString() : null;
+            log.info("Fallback parsing - orderId: {}, paymentIntentId: {}", orderId, paymentIntentId);
+        } else {
+            log.error("Failed to deserialize checkout.session.completed event - no object or raw JSON available");
+            return;
+        }
+
+        if (orderId != null) {
+            log.info("Updating order status for orderId: {}", orderId);
+            updateOrderStatus(orderId, paymentIntentId, "PAID", true);
+        } else {
+            log.error("orderId is null in checkout.session.completed event metadata");
+        }
+    }
+
+    private void processAsyncPaymentFailed(Event event) {
+        log.info("Processing checkout.session.async_payment_failed event");
+        EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
+        String orderId = null;
+        String paymentIntentId = null;
+
+        if (deserializer.getObject().isPresent()) {
+            Session session = (Session) deserializer.getObject().get();
+            orderId = session.getMetadata().get("orderId");
+            paymentIntentId = session.getPaymentIntent();
+            log.info("Async payment failed - orderId: {}, paymentIntentId: {}", orderId, paymentIntentId);
+            log.debug("Session metadata: {}", session.getMetadata());
+        } else if (deserializer.getRawJson() != null) {
+            log.warn("Using fallback JSON parsing for checkout.session.async_payment_failed");
+            JsonObject eventJson = JsonParser.parseString(deserializer.getRawJson()).getAsJsonObject();
+            JsonObject metadata = eventJson.has("metadata") ? eventJson.getAsJsonObject("metadata") : null;
+            orderId = metadata != null && metadata.has("orderId") ? metadata.get("orderId").getAsString() : null;
+            paymentIntentId = eventJson.has("payment_intent") ? eventJson.get("payment_intent").getAsString() : null;
+            log.info("Fallback parsing - orderId: {}, paymentIntentId: {}", orderId, paymentIntentId);
+        } else {
+            log.error("Failed to deserialize checkout.session.async_payment_failed event - no object or raw JSON available");
+            return;
+        }
+
+        if (orderId != null) {
+            log.info("Updating order status to PAYMENT_FAILED for orderId: {}", orderId);
+            updateOrderStatus(orderId, paymentIntentId, "PAYMENT_FAILED", false);
+        } else {
+            log.error("orderId is null in checkout.session.async_payment_failed event metadata");
+        }
+    }
+
+    private void processSessionExpired(Event event) {
+        log.info("Processing checkout.session.expired event");
+        EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
+        String orderId = null;
+
+        if (deserializer.getObject().isPresent()) {
+            Session session = (Session) deserializer.getObject().get();
+            orderId = session.getMetadata().get("orderId");
+            log.info("Checkout session expired - orderId: {}", orderId);
+            log.debug("Session metadata: {}", session.getMetadata());
+        } else if (deserializer.getRawJson() != null) {
+            log.warn("Using fallback JSON parsing for checkout.session.expired");
+            JsonObject eventJson = JsonParser.parseString(deserializer.getRawJson()).getAsJsonObject();
+            JsonObject metadata = eventJson.has("metadata") ? eventJson.getAsJsonObject("metadata") : null;
+            orderId = metadata != null && metadata.has("orderId") ? metadata.get("orderId").getAsString() : null;
+            log.info("Fallback parsing - orderId: {}", orderId);
+        } else {
+            log.error("Failed to deserialize checkout.session.expired event - no object or raw JSON available");
+            return;
+        }
+
+        if (orderId != null) {
+            log.info("Updating order status to EXPIRED for orderId: {}", orderId);
+            updateOrderStatus(orderId, null, "EXPIRED", false);
+        } else {
+            log.error("orderId is null in checkout.session.expired event metadata");
+        }
+    }
+
+    private void updateOrderStatus(String orderId, String paymentIntentId, String status, boolean finalizeInventory) {
         OrderEntity order = orderMapper.selectById(orderId);
-        if (order == null) return;
-        
-        if ("payment_intent.succeeded".equals(eventType)) {
-            if (!"PAID".equals(order.getStatus())) {
-                // Update order status
-                order.setStatus("PAID");
+        if (order == null) {
+            log.error("Order not found for orderId: {}", orderId);
+            return;
+        }
+
+        if (!status.equals(order.getStatus())) {
+            log.info("Updating order status to {} for orderId: {}", status, orderId);
+            // Update order status
+            order.setStatus(status);
+            if (paymentIntentId != null) {
                 order.setPaymentIntentId(paymentIntentId);
-                orderMapper.updateById(order);
-                
-                // Update transaction status
-                UpdateWrapper<OrderTransactionEntity> transactionWrapper = new UpdateWrapper<>();
-                transactionWrapper.eq("order_id", orderId)
-                        .isNull("deleted_at")
-                        .set("status", "PAID")
-                        .set("account_no", paymentIntentId);
-                orderTransactionMapper.update(null, transactionWrapper);
-                
-                // Finalize inventory
-                QueryWrapper<OrderItemEntity> queryWrapper = new QueryWrapper<>();
-                queryWrapper.eq("order_id", orderId).isNull("deleted_at").select("product_id", "quantity");
-                List<OrderItemEntity> orderItems = orderItemMapper.selectList(queryWrapper);
+            }
+            orderMapper.updateById(order);
+
+            // Update transaction status
+            log.debug("Updating transaction status to {} for orderId: {}", status, orderId);
+            UpdateWrapper<OrderTransactionEntity> transactionWrapper = new UpdateWrapper<>();
+            transactionWrapper.eq("order_id", orderId)
+                    .isNull("deleted_at")
+                    .set("status", status.equals("EXPIRED") ? "CANCELED" : status)
+                    .set(paymentIntentId != null ? "account_no" : null, paymentIntentId);
+            orderTransactionMapper.update(null, transactionWrapper);
+
+            // Handle inventory
+            QueryWrapper<OrderItemEntity> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("order_id", orderId).isNull("deleted_at").select("product_id", "quantity");
+            List<OrderItemEntity> orderItems = orderItemMapper.selectList(queryWrapper);
+
+            if (finalizeInventory) {
+                log.debug("Finalizing inventory for orderId: {}", orderId);
                 for (OrderItemEntity orderItem : orderItems) {
+                    log.debug("Finalizing inventory for productId: {}, quantity: {}", orderItem.getProductId(), orderItem.getQuantity());
                     productFeignClient.finalizeInventory(orderItem.getProductId(), orderItem.getQuantity());
                 }
-                // TODO: send notification
+            } else {
+                log.debug("Releasing inventory for orderId: {}", orderId);
+                for (OrderItemEntity orderItem : orderItems) {
+                    log.debug("Releasing inventory for productId: {}, quantity: {}", orderItem.getProductId(), orderItem.getQuantity());
+                    productFeignClient.releaseInventory(orderItem.getProductId(), orderItem.getQuantity());
+                }
             }
-        } else if ("payment_intent.failed".equals(eventType)) {
-            if (!"PAYMENT_FAILED".equals(order.getStatus())) {
-                // Update order status
-                order.setStatus("PAYMENT_FAILED");
-                order.setPaymentIntentId(paymentIntentId);
-                orderMapper.updateById(order);
-                
-                // Update transaction status
-                UpdateWrapper<OrderTransactionEntity> transactionWrapper = new UpdateWrapper<>();
-                transactionWrapper.eq("order_id", orderId)
-                        .isNull("deleted_at")
-                        .set("status", "FAILED")
-                        .set("account_no", paymentIntentId);
-                orderTransactionMapper.update(null, transactionWrapper);
-                
-                // TODO: release inventory
-            }
+            // TODO: send notification
+            log.info("Successfully processed orderId: {} with status: {}", orderId, status);
+        } else {
+            log.info("OrderId: {} already in status: {}, skipping update", orderId, status);
         }
     }
-} 
+}
