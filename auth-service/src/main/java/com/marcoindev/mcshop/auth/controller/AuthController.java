@@ -8,6 +8,7 @@ import com.marcoindev.mcshop.auth.payload.response.RefreshTokenResponse;
 import com.marcoindev.mcshop.auth.payload.response.UserLoginResponse;
 import com.marcoindev.mcshop.auth.payload.response.UserRegisterResponse;
 import com.marcoindev.mcshop.auth.service.AuthService;
+import com.marcoindev.mcshop.common.payload.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -21,29 +22,37 @@ public class AuthController {
     private AuthService authService;
 
     @GetMapping("/otp")
-    public ResponseEntity<String> otp(@RequestBody OtpRequest otpRequest) throws Exception {
+    public ResponseEntity<ApiResponse<String>> otp(@RequestBody OtpRequest otpRequest) throws Exception {
         authService.requestOtp(otpRequest.getEmail());
 
-        return ResponseEntity.ok("Request OTP Successfully");
+        return ResponseEntity.ok(ApiResponse.<String>builder()
+                .data("Request OTP Successfully")
+                .build());
     }
 
     @PostMapping(path = "/login")
-    public ResponseEntity<UserLoginResponse> login(@RequestBody @Valid UserLoginRequest userLoginReq) {
+    public ResponseEntity<ApiResponse<UserLoginResponse>> login(@RequestBody @Valid UserLoginRequest userLoginReq) {
         UserLoginResponse loginResponse = authService.login(userLoginReq);
 
-        return ResponseEntity.ok(loginResponse);
+        return ResponseEntity.ok(ApiResponse.<UserLoginResponse>builder()
+                .data(loginResponse)
+                .build());
     }
 
     @PostMapping(path = "/register")
-    public ResponseEntity<UserRegisterResponse> login(@RequestBody @Valid UserRegisterRequest userRegisterReq) {
+    public ResponseEntity<ApiResponse<UserRegisterResponse>> register(@RequestBody @Valid UserRegisterRequest userRegisterReq) {
         UserRegisterResponse response = authService.register(userRegisterReq);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.<UserRegisterResponse>builder()
+                .data(response)
+                .build());
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<RefreshTokenResponse> refreshToken(@RequestBody @Valid RefreshTokenRequest request) {
+    public ResponseEntity<ApiResponse<RefreshTokenResponse>> refreshToken(@RequestBody @Valid RefreshTokenRequest request) {
         RefreshTokenResponse refreshTokenResponse = authService.refreshToken(request);
-        return ResponseEntity.ok(refreshTokenResponse);
+        return ResponseEntity.ok(ApiResponse.<RefreshTokenResponse>builder()
+                .data(refreshTokenResponse)
+                .build());
     }
 }

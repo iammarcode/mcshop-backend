@@ -54,7 +54,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status)
                 .body(ErrorResponse.builder()
                         .timestamp(LocalDateTime.now())
-                        .status(status.value())
+                        .code(status.value())
                         .error(ex.getMessage())
                         .path(request.getDescription(false).replace("uri=", ""))
                         .build());

@@ -15,6 +15,6 @@ public class ApiResponse<T> {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime timestamp = LocalDateTime.now();
     @Builder.Default
-    private int status = 200;
+    private int code = 200;
     private T data;
 }

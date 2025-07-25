@@ -14,7 +14,7 @@ public class ErrorResponse {
     @Builder.Default
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime timestamp = LocalDateTime.now();
-    private int status;
+    private int code;
     private String error;
     private String path;
     private String traceId;
