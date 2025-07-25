@@ -34,7 +34,7 @@ public class StripeWebhookController {
 
     @Value("${stripe.webhook.secret}")
     private String endpointSecret;
-
+    
     @PostMapping
     public String handleStripeEvent(@RequestHeader("Stripe-Signature") String sigHeader, @RequestBody String payload) {
         try {
@@ -66,11 +66,34 @@ public class StripeWebhookController {
             // Handle Checkout Session events (for Stripe Checkout)
             if ("checkout.session.completed".equals(event.getType())) {
                 EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
+                String orderId = null;
+                String paymentIntentId = null;
+                
                 if (deserializer.getObject().isPresent()) {
                     com.stripe.model.checkout.Session session = (com.stripe.model.checkout.Session) deserializer.getObject().get();
-                    String orderId = session.getMetadata().get("orderId");
-                    updateOrderStatus("payment_intent.succeeded", orderId, session.getPaymentIntent());
+                    orderId = session.getMetadata().get("orderId");
+                    paymentIntentId = session.getPaymentIntent();
+                    log.info("Checkout session completed - orderId: {}", orderId);
+                    log.info("Session metadata: {}", session.getMetadata());
+                } else if (deserializer.getRawJson() != null) {
+                    // Fallback: parse raw JSON when deserialization fails
+                    log.info("Using fallback JSON parsing for checkout.session.completed");
+                    JsonObject eventJson = JsonParser.parseString(deserializer.getRawJson()).getAsJsonObject();
+                    JsonObject metadata = eventJson.has("metadata") ? eventJson.getAsJsonObject("metadata") : null;
+                    orderId = metadata != null && metadata.has("orderId") ? metadata.get("orderId").getAsString() : null;
+                    paymentIntentId = eventJson.has("payment_intent") ? eventJson.get("payment_intent").getAsString() : null;
+                    log.info("Fallback parsing - orderId: {}, paymentIntentId: {}", orderId, paymentIntentId);
+                } else {
+                    log.error("Could not deserialize checkout.session.completed event - no object or raw JSON available");
+                    return "error - deserialization failed";
+                }
+                
+                if (orderId != null) {
+                    updateOrderStatus("payment_intent.succeeded", orderId, paymentIntentId);
                     return "success";
+                } else {
+                    log.error("orderId is null in checkout.session.completed event");
+                    return "error - no orderId in metadata";
                 }
             }
 
