@@ -1,6 +1,5 @@
 package com.marcoindev.mcshop.auth.controller;
 
-import com.marcoindev.mcshop.auth.payload.request.OtpRequest;
 import com.marcoindev.mcshop.auth.payload.request.RefreshTokenRequest;
 import com.marcoindev.mcshop.auth.payload.request.UserLoginRequest;
 import com.marcoindev.mcshop.auth.payload.request.UserRegisterRequest;
@@ -22,8 +21,8 @@ public class AuthController {
     private AuthService authService;
 
     @GetMapping("/otp")
-    public ResponseEntity<ApiResponse<String>> otp(@RequestBody OtpRequest otpRequest) throws Exception {
-        authService.requestOtp(otpRequest.getEmail());
+    public ResponseEntity<ApiResponse<String>> otp(@RequestParam("email") String email) {
+        authService.requestOtp(email);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

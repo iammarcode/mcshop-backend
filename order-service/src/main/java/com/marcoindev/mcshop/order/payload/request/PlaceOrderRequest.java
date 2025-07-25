@@ -17,6 +17,7 @@ public class PlaceOrderRequest {
     
     private String userAddressId; // Optional - will use default address if not provided
 
+    @NotBlank
     private String currency; // Optional - user chooses currency on Stripe Checkout
 
     @Data
