@@ -15,23 +15,18 @@ public class ProductController {
 
     private final ProductService productService;
 
-    @GetMapping("/test")
-    public ResponseEntity<ApiResponse<String>> test(@RequestHeader("X-User-ID") String userId) {
-        return ResponseEntity.ok(ApiResponse.<String>builder().data(userId).build());
-    }
-
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<IPage<ProductEntity>>> getAllProducts(
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "10") long size) {
         IPage<ProductEntity> products = productService.getAllProducts(page, size);
-        return ResponseEntity.ok(ApiResponse.<IPage<ProductEntity>>builder().data(products).build());
+        return ResponseEntity.ok(ApiResponse.success(products));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ProductEntity>> getProductById(@PathVariable String id) {
         return productService.getProductById(id)
-                .map(product -> ResponseEntity.ok(ApiResponse.<ProductEntity>builder().data(product).build()))
+                .map(product -> ResponseEntity.ok(ApiResponse.success(product)))
                 .orElse(ResponseEntity.notFound().build());
     }
 }

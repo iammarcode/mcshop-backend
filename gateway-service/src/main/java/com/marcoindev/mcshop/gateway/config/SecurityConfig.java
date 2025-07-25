@@ -12,7 +12,13 @@ public class SecurityConfig {
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
-        http.csrf(ServerHttpSecurity.CsrfSpec::disable);
+        http
+            .csrf(ServerHttpSecurity.CsrfSpec::disable)
+            .cors(ServerHttpSecurity.CorsSpec::disable) // Disable default CORS, use our custom config
+            .authorizeExchange(exchanges -> exchanges
+                // Let JwtAuthFilter handle all authentication
+                .anyExchange().permitAll()
+            );
 
         return http.build();
     }

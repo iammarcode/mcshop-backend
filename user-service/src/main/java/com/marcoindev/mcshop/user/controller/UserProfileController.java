@@ -1,5 +1,6 @@
 package com.marcoindev.mcshop.user.controller;
 
+import com.marcoindev.mcshop.common.payload.ApiResponse;
 import com.marcoindev.mcshop.user.payload.request.CreateProfileRequest;
 import com.marcoindev.mcshop.user.payload.response.UserProfileResponse;
 import com.marcoindev.mcshop.user.service.UserProfileService;
@@ -16,9 +17,9 @@ public class UserProfileController {
     private UserProfileService profileService;
 
     @GetMapping("/me")
-    public ResponseEntity<UserProfileResponse> getProfileById(@RequestHeader("X-User-Id") String userId) {
+    public ResponseEntity<ApiResponse<UserProfileResponse>> getProfileById(@RequestHeader("X-User-Id") String userId) {
         UserProfileResponse response = profileService.getProfileById(userId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping
