@@ -14,6 +14,7 @@ import com.marcoindev.mcshop.order.repository.OrderTransactionMapper;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.checkout.Session;
+import com.stripe.model.PaymentIntent;
 import com.stripe.net.Webhook;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -166,13 +167,27 @@ public class StripeWebhookController {
             }
             orderMapper.updateById(order);
 
-            // Update transaction status
+            // Update transaction status and currency
             log.debug("Updating transaction status to {} for orderId: {}", status, orderId);
             UpdateWrapper<OrderTransactionEntity> transactionWrapper = new UpdateWrapper<>();
             transactionWrapper.eq("order_id", orderId)
                     .isNull("deleted_at")
-                    .set("status", status.equals("EXPIRED") ? "CANCELED" : status)
-                    .set(paymentIntentId != null ? "account_no" : null, paymentIntentId);
+                    .set("status", status.equals("EXPIRED") ? "CANCELED" : status);
+            
+            // Set currency from payment intent if available (for successful payments)
+            if (paymentIntentId != null && "PAID".equals(status)) {
+                try {
+                    // Extract currency from Stripe PaymentIntent
+                    PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId);
+                    String currency = paymentIntent.getCurrency();
+                    transactionWrapper.set("currency", currency);
+                    log.debug("Set transaction currency to {} from payment intent for orderId: {}", currency, orderId);
+                } catch (Exception e) {
+                    log.warn("Failed to extract currency from payment intent for orderId: {}, using order currency", orderId, e);
+                    transactionWrapper.set("currency", order.getCurrency());
+                }
+            }
+            
             orderTransactionMapper.update(null, transactionWrapper);
 
             // Handle inventory
