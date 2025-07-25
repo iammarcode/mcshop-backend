@@ -12,6 +12,7 @@ import com.marcoindev.mcshop.order.repository.OrderItemMapper;
 import com.marcoindev.mcshop.order.repository.OrderMapper;
 import com.marcoindev.mcshop.order.repository.OrderTransactionMapper;
 import com.marcoindev.mcshop.order.service.OrderService;
+import com.marcoindev.mcshop.common.payload.ErrorCode;
 import com.stripe.Stripe;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
@@ -52,7 +53,7 @@ public class OrderServiceImpl implements OrderService {
         try {
             locked = lock.tryLock(10, 5, TimeUnit.SECONDS);
             if (!locked) {
-                throw new APIRuntimeException("System busy, try again.");
+                throw new APIRuntimeException(ErrorCode.PURCHASE_SYSTEM_BUSY);
             }
             // 1. Reserve inventory and fetch price for all products
             List<SessionCreateParams.LineItem> lineItems = new ArrayList<>();
@@ -62,7 +63,8 @@ public class OrderServiceImpl implements OrderService {
                     for (String pid : reservedProductIds) {
                         productFeignClient.releaseInventory(pid, reservedQuantities.get(pid));
                     }
-                    throw new APIRuntimeException("Insufficient inventory for product: " + po.getProductId());
+                    throw new APIRuntimeException(ErrorCode.PURCHASE_INSUFFICIENT_INVENTORY, 
+                        "Insufficient inventory for product: " + po.getProductId());
                 }
                 reservedProductIds.add(po.getProductId());
                 reservedQuantities.put(po.getProductId(), po.getQuantity());
@@ -71,7 +73,8 @@ public class OrderServiceImpl implements OrderService {
                     for (String pid : reservedProductIds) {
                         productFeignClient.releaseInventory(pid, reservedQuantities.get(pid));
                     }
-                    throw new APIRuntimeException("Product not found or price missing: " + po.getProductId());
+                    throw new APIRuntimeException(ErrorCode.PURCHASE_PRODUCT_NOT_FOUND, 
+                        "Product not found or price missing: " + po.getProductId());
                 }
                 total = total.add(product.getPrice().multiply(BigDecimal.valueOf(po.getQuantity())));
                 // Build Stripe Checkout line item
@@ -144,7 +147,8 @@ public class OrderServiceImpl implements OrderService {
             for (String pid : reservedProductIds) {
                 productFeignClient.releaseInventory(pid, reservedQuantities.get(pid));
             }
-            throw new APIRuntimeException("Purchase failed: " + e.getMessage());
+            throw new APIRuntimeException(ErrorCode.PURCHASE_PAYMENT_FAILED, 
+                "Purchase failed: " + e.getMessage(), e);
         } finally {
             if (locked) lock.unlock();
         }
