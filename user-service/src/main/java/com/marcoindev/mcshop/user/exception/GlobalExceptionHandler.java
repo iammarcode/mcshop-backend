@@ -2,6 +2,8 @@ package com.marcoindev.mcshop.user.exception;
 
 import com.marcoindev.mcshop.common.payload.ErrorResponse;
 import com.marcoindev.mcshop.user.exception.profile.ProfileNotFoundException;
+import com.marcoindev.mcshop.user.exception.address.AddressNotFoundException;
+import com.marcoindev.mcshop.user.exception.address.AddressNotOwnedByUserException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +19,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalExceptionHandler {
     @ExceptionHandler({
-            ProfileNotFoundException.class
+            ProfileNotFoundException.class,
+            AddressNotFoundException.class,
+            AddressNotOwnedByUserException.class
     })
     public ResponseEntity<ErrorResponse> handleCustomException(RuntimeException ex, WebRequest request) {
         log.error("Custom exception handler: ", ex);

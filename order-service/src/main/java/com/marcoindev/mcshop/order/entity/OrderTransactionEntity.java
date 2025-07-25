@@ -16,8 +16,8 @@ public class OrderTransactionEntity {
     @TableId
     private String id;
     private BigDecimal amount;
+    private String currency;
     private String provider;
-    private String accountNo;
     private String status;
     private String orderId;
     private String idempotencyKey;

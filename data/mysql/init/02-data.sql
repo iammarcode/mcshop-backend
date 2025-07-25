@@ -14,6 +14,15 @@ VALUES
   ('userid2', 'Bob', 'Builder', '+0987654321', NOW(), NOW()),
   ('userid3', 'Charlie', 'Brown', '+1122334455', NOW(), NOW());
 
+-- User Addresses
+INSERT INTO user_address (id, user_id, address_line1, address_line2, postal_code, city, country, phone, is_default, created_at, updated_at)
+VALUES
+  ('addressid1', 'userid1', '123 Wonderland Street', 'Apt 4B', '12345', 'Fantasy City', 'United States', '+1234567890', TRUE, NOW(), NOW()),
+  ('addressid2', 'userid1', '456 Tea Party Lane', 'Garden House', '12346', 'Fantasy City', 'United States', '+1234567890', FALSE, NOW(), NOW()),
+  ('addressid3', 'userid2', '789 Construction Avenue', 'Building 7', '67890', 'Builder Town', 'United States', '+0987654321', TRUE, NOW(), NOW()),
+  ('addressid4', 'userid2', '321 Tool Street', 'Workshop 3', '67891', 'Builder Town', 'United States', '+0987654321', FALSE, NOW(), NOW()),
+  ('addressid5', 'userid3', '654 Peanuts Lane', 'House 10', '11223', 'Comic Strip City', 'United States', '+1122334455', TRUE, NOW(), NOW());
+
 -- Product Categories
 INSERT INTO product_category (id, name, description, image_url, created_at, updated_at)
 VALUES

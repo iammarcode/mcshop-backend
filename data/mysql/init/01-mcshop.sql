@@ -46,7 +46,6 @@ CREATE TABLE IF NOT EXISTS `user_payment` (
     `user_id` CHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'Reference to users.id',
     `type` VARCHAR(64) NOT NULL COMMENT 'Payment type',
     `provider` VARCHAR(64) NOT NULL COMMENT 'Payment provider',
-    `account_no` VARCHAR(64) NOT NULL COMMENT 'Payment account number',
     `expiry` DATETIME NULL COMMENT 'Expiry of the payment',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Profile creation time',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Last profile update time',
@@ -54,16 +53,20 @@ CREATE TABLE IF NOT EXISTS `user_payment` (
 ) ENGINE=InnoDB COMMENT='Payment information';
 
 CREATE TABLE IF NOT EXISTS `user_address` (
-    `user_id` CHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'Reference to users.id',
+    `id` CHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'Address ID',
+    `user_id` CHAR(36) NOT NULL COMMENT 'Reference to users.id',
     `address_line1` TEXT NOT NULL COMMENT 'Address line1',
     `address_line2` TEXT NULL COMMENT 'Address line2',
     `postal_code` VARCHAR(100) NOT NULL COMMENT 'Postal Code',
     `city` VARCHAR(100) NOT NULL COMMENT 'City',
     `country` VARCHAR(100) NOT NULL COMMENT 'Country',
     `phone` VARCHAR(64) NOT NULL COMMENT 'Phone',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Profile creation time',
-    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Last profile update time',
-    `deleted_at` DATETIME NULL COMMENT 'Soft delete timestamp'
+    `is_default` BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Is default address',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Address creation time',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Last address update time',
+    `deleted_at` DATETIME NULL COMMENT 'Soft delete timestamp',
+    INDEX `idx_user_id` (`user_id`),
+    INDEX `idx_is_default` (`is_default`)
 ) ENGINE=InnoDB COMMENT='Address information';
 
 -- 3. Product Service
@@ -145,6 +148,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
     `id` CHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'ID',
     `status` VARCHAR(100) NOT NULL DEFAULT 'PENDING_PAYMENT' COMMENT 'Order status',
     `total` DECIMAL(10,2) NOT NULL COMMENT 'Order total',
+    `currency` VARCHAR(3) NOT NULL DEFAULT 'USD' COMMENT 'Order currency',
     `user_id` CHAR(36) NOT NULL COMMENT 'User id',
     `user_address_id` CHAR(36) NOT NULL COMMENT 'User address id',
     `payment_intent_id` CHAR(255) NULL COMMENT 'Payment intent id',
@@ -166,8 +170,8 @@ CREATE TABLE IF NOT EXISTS `orders_item` (
 CREATE TABLE IF NOT EXISTS `orders_transaction` (
     `id` CHAR(36) PRIMARY KEY DEFAULT (UUID()) COMMENT 'Order transaction ID',
     `amount` DECIMAL(10,2) NOT NULL COMMENT 'Transaction amount',
+    `currency` VARCHAR(3) NULL COMMENT 'Transaction currency',
     `provider` VARCHAR(64) NOT NULL COMMENT 'Payment provider',
-    `account_no` VARCHAR(64) NULL COMMENT 'Account number',
     `status` VARCHAR(64) NOT NULL DEFAULT 'PENDING' COMMENT 'Transaction status',
     `order_id` CHAR(36) NOT NULL COMMENT 'Order id',
     `idempotency_key` CHAR(255) NOT NULL COMMENT 'idempotency key',

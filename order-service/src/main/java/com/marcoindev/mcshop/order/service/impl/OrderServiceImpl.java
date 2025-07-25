@@ -5,6 +5,7 @@ import com.marcoindev.mcshop.order.entity.OrderItemEntity;
 import com.marcoindev.mcshop.order.entity.OrderTransactionEntity;
 import com.marcoindev.mcshop.order.exception.APIRuntimeException;
 import com.marcoindev.mcshop.order.feign.ProductFeignClient;
+import com.marcoindev.mcshop.order.feign.UserAddressFeignClient;
 import com.marcoindev.mcshop.order.payload.request.PlaceOrderRequest;
 import com.marcoindev.mcshop.order.payload.request.PlaceOrderRequest.ProductOrder;
 import com.marcoindev.mcshop.order.payload.response.PlaceOrderResponse;
@@ -36,6 +37,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderTransactionMapper orderTransactionMapper;
     private final RedissonClient redissonClient = Redisson.create();
     private final ProductFeignClient productFeignClient;
+    private final UserAddressFeignClient userAddressFeignClient;
     @Value("${stripe.api.key}")
     private String stripeApiKey;
 
@@ -43,11 +45,17 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public PlaceOrderResponse placeOrder(PlaceOrderRequest request) {
+    public PlaceOrderResponse placeOrder(PlaceOrderRequest request, String userId) {
         List<String> reservedProductIds = new ArrayList<>();
         Map<String, Integer> reservedQuantities = new HashMap<>();
         BigDecimal total = BigDecimal.ZERO;
-        String lockKey = PRODUCT_LOCK_PREFIX + request.getProducts().stream().map(PlaceOrderRequest.ProductOrder::getProductId).sorted().reduce("", String::concat);
+        
+        // Create lock key from product IDs
+        String lockKey = PRODUCT_LOCK_PREFIX + request.getProducts().stream()
+                .map(PlaceOrderRequest.ProductOrder::getProductId)
+                .sorted()
+                .reduce("", String::concat);
+        
         RLock lock = redissonClient.getLock(lockKey);
         boolean locked = false;
         try {
@@ -55,7 +63,42 @@ public class OrderServiceImpl implements OrderService {
             if (!locked) {
                 throw new APIRuntimeException(ErrorCode.PURCHASE_SYSTEM_BUSY);
             }
-            // 1. Reserve inventory and fetch price for all products
+            
+            // 0. Get and validate user address (use default if not provided)
+            String userAddressId = request.getUserAddressId();
+            try {
+                UserAddressFeignClient.UserAddressResponse addressResponse;
+                
+                if (userAddressId == null || userAddressId.trim().isEmpty()) {
+                    // Use default address
+                    addressResponse = userAddressFeignClient.getDefaultAddress(userId);
+                    userAddressId = addressResponse.data.getId();
+                } else {
+                    // Use provided address
+                    addressResponse = userAddressFeignClient.getAddressById(userAddressId, userId);
+                }
+                
+                if (addressResponse == null || addressResponse.data == null) {
+                    throw new APIRuntimeException(ErrorCode.PURCHASE_PRODUCT_NOT_FOUND, 
+                        "Address not found or does not belong to user: " + userAddressId);
+                }
+                // Additional validation: ensure address belongs to the requesting user
+                if (!addressResponse.data.getUserId().equals(userId)) {
+                    throw new APIRuntimeException(ErrorCode.PURCHASE_PRODUCT_NOT_FOUND, 
+                        "Address does not belong to user: " + userAddressId);
+                }
+            } catch (Exception e) {
+                throw new APIRuntimeException(ErrorCode.PURCHASE_PRODUCT_NOT_FOUND, 
+                    "Failed to validate address: " + e.getMessage());
+            }
+            
+            // 1. Determine order currency first
+            String orderCurrency = "usd"; // Default
+            if (request.getCurrency() != null && !request.getCurrency().trim().isEmpty()) {
+                orderCurrency = request.getCurrency().toLowerCase();
+            }
+            
+            // 2. Reserve inventory and fetch price for all products
             List<SessionCreateParams.LineItem> lineItems = new ArrayList<>();
             for (ProductOrder po : request.getProducts()) {
                 boolean reserved = productFeignClient.reserveInventory(po.getProductId(), po.getQuantity());
@@ -78,31 +121,35 @@ public class OrderServiceImpl implements OrderService {
                 }
                 total = total.add(product.getPrice().multiply(BigDecimal.valueOf(po.getQuantity())));
                 // Build Stripe Checkout line item
+                SessionCreateParams.LineItem.PriceData.Builder priceDataBuilder = 
+                    SessionCreateParams.LineItem.PriceData.builder()
+                        .setUnitAmount(product.getPrice().movePointRight(2).longValue())
+                        .setProductData(
+                            SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                .setName("Product: " + product.getName())
+                                .build()
+                        );
+                
+                // Use order currency for Stripe Checkout
+                priceDataBuilder.setCurrency(orderCurrency);
+                
                 lineItems.add(
                     SessionCreateParams.LineItem.builder()
                         .setQuantity(Long.valueOf(po.getQuantity()))
-                        .setPriceData(
-                            SessionCreateParams.LineItem.PriceData.builder()
-                                .setCurrency(request.getCurrency())
-                                .setUnitAmount(product.getPrice().movePointRight(2).longValue())
-                                .setProductData(
-                                    SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                        .setName("Product: " + product.getName())
-                                        .build()
-                                )
-                                .build()
-                        )
+                        .setPriceData(priceDataBuilder.build())
                         .build()
                 );
             }
             // 2. Create order (status: PENDING_PAYMENT)
             String orderId = UUID.randomUUID().toString();
+            
             OrderEntity order = OrderEntity.builder()
                 .id(orderId)
                 .status("PENDING_PAYMENT")
                 .total(total)
-                .userId(request.getUserId())
-                .userAddressId(request.getUserAddressId())
+                .currency(orderCurrency)
+                .userId(userId)
+                .userAddressId(userAddressId)
                 .build();
             orderMapper.insert(order);
             // 3. Create Stripe Checkout Session
@@ -115,12 +162,11 @@ public class OrderServiceImpl implements OrderService {
                 .putMetadata("orderId", orderId)
                 .build();
             Session session = Session.create(params);
-            // 4. Create order transaction (status: PENDING)
+            // 4. Create order transaction (status: PENDING) - currency will be set during webhook
             OrderTransactionEntity transaction = OrderTransactionEntity.builder()
                 .id(UUID.randomUUID().toString())
                 .amount(total)
                 .provider("stripe")
-                .accountNo(null)
                 .status("PENDING")
                 .orderId(orderId)
                 .idempotencyKey(session.getId())

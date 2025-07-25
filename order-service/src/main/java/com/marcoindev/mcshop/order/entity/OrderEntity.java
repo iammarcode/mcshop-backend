@@ -18,6 +18,7 @@ public class OrderEntity {
     private String id;
     private String status;
     private BigDecimal total;
+    private String currency;
     private String userId;
     private String userAddressId;
     private String paymentIntentId;
