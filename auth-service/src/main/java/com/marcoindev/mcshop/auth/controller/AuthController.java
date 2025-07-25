@@ -24,35 +24,24 @@ public class AuthController {
     @GetMapping("/otp")
     public ResponseEntity<ApiResponse<String>> otp(@RequestBody OtpRequest otpRequest) throws Exception {
         authService.requestOtp(otpRequest.getEmail());
-
-        return ResponseEntity.ok(ApiResponse.<String>builder()
-                .data("Request OTP Successfully")
-                .build());
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @PostMapping(path = "/login")
     public ResponseEntity<ApiResponse<UserLoginResponse>> login(@RequestBody @Valid UserLoginRequest userLoginReq) {
         UserLoginResponse loginResponse = authService.login(userLoginReq);
-
-        return ResponseEntity.ok(ApiResponse.<UserLoginResponse>builder()
-                .data(loginResponse)
-                .build());
+        return ResponseEntity.ok(ApiResponse.success(loginResponse));
     }
 
     @PostMapping(path = "/register")
     public ResponseEntity<ApiResponse<UserRegisterResponse>> register(@RequestBody @Valid UserRegisterRequest userRegisterReq) {
         UserRegisterResponse response = authService.register(userRegisterReq);
-
-        return ResponseEntity.ok(ApiResponse.<UserRegisterResponse>builder()
-                .data(response)
-                .build());
+        return ResponseEntity.ok(ApiResponse.created(response));
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<RefreshTokenResponse>> refreshToken(@RequestBody @Valid RefreshTokenRequest request) {
         RefreshTokenResponse refreshTokenResponse = authService.refreshToken(request);
-        return ResponseEntity.ok(ApiResponse.<RefreshTokenResponse>builder()
-                .data(refreshTokenResponse)
-                .build());
+        return ResponseEntity.ok(ApiResponse.success(refreshTokenResponse));
     }
 }

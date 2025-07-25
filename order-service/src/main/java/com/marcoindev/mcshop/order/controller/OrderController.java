@@ -20,6 +20,6 @@ public class OrderController {
     @PostMapping("/place")
     public ResponseEntity<ApiResponse<PlaceOrderResponse>> place(@RequestBody PlaceOrderRequest request) {
         PlaceOrderResponse response = orderService.placeOrder(request);
-        return ResponseEntity.ok(ApiResponse.<PlaceOrderResponse>builder().data(response).build());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

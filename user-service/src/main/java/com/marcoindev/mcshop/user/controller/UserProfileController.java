@@ -19,7 +19,7 @@ public class UserProfileController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getProfileById(@RequestHeader("X-User-Id") String userId) {
         UserProfileResponse response = profileService.getProfileById(userId);
-        return ResponseEntity.ok(ApiResponse.<UserProfileResponse>builder().data(response).build());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping
